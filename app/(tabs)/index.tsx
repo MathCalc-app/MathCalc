@@ -23,7 +23,7 @@ export default function HomeScreen() {
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 2: Ask AI to help you</ThemedText>
         <ThemedText>
-            Tap the <ThemedText type="defaultSemiBold">MathExplanation</ThemedText> tab to ask the AI to explain and help you with your problem.
+            Tap the <ThemedText type="defaultSemiBold">Calculator</ThemedText> tab to ask the AI to explain and help you with your problem.
         </ThemedText>
       </ThemedView>
     </ParallaxScrollView>
