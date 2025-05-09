@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mathcalc",
+    "name": "MathCalc",
     "slug": "mathcalc",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -23,7 +23,19 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow MathCalc to access your camera to scan math problems."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow MathCalc to access your photos to select math problems."
+        }
+      ],
+    "expo-router",
       [
         "expo-splash-screen",
         {
