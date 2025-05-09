@@ -15,7 +15,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -35,7 +39,7 @@
           "photosPermission": "Allow MathCalc to access your photos to select math problems."
         }
       ],
-    "expo-router",
+      "expo-router",
       [
         "expo-splash-screen",
         {
@@ -48,6 +52,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "88b3304c-eca7-46b6-bb30-ecf877342bf2"
+      }
+    },
+    "owner": "kzthekz"
   }
 }
