@@ -25,110 +25,45 @@ export const solveMathProblem = async (
         console.log('Starting math problem solution for:', mathText);
         const cleanedText = cleanMathText(mathText);
         console.log('Cleaned text:', cleanedText);
-        let streamedContent = '';
+
+        console.log('Using non-streaming mode');
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are an expert mathematics assistant. Analyze, solve, and explain mathematical problems in detail. Provide the solution, a clear explanation of the steps, and a LaTeX representation of the mathematical expression. Format your response as JSON with 'solution', 'explanation', and 'latexExpression' fields."
+                },
+                {
+                    role: "user",
+                    content: `Solve this mathematical problem and explain the solution: ${cleanedText}`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const content = response.choices[0]?.message?.content;
+
+        if (!content) {
+            console.error('No content returned from AI');
+            throw new Error('No content returned from AI');
+        }
+
+        console.log('Received content:', content.substring(0, 50) + '...');
+        const parsedContent = JSON.parse(content);
+        console.log('JSON parsed successfully');
 
         if (onProgress) {
-            console.log('Using streaming mode');
-            try {
-                const stream = await openai.chat.completions.create({
-                    model: "gpt-4o",
-                    messages: [
-                        {
-                            role: "system",
-                            content: `You are a mathematics expert. Always respond with valid JSON containing:
-                        "solution", "explanation", and "latexExpression". Example response:
-                        {"solution": "12", "explanation": "The sum of...", "latexExpression": "6+6"}`
-                        },
-                        {
-                            role: "user",
-                            content: `Solve and explain: ${cleanedText}`
-                        }
-                    ],
-                    stream: true
-                });
-
-                streamedContent = '';
-                let chunkCount = 0;
-                let receivedAnyContent = false;
-
-                for await (const chunk of stream) {
-                    receivedAnyContent = true;
-                    const content = chunk.choices[0]?.delta?.content || '';
-                    streamedContent += content;
-                    chunkCount++;
-                    if (onProgress) onProgress(streamedContent);
-                }
-
-                if (!receivedAnyContent) {
-                    throw new Error('API returned empty response stream');
-                }
-
-                console.log(`Streaming complete. Received ${chunkCount} chunks.`);
-
-                try {
-                    let contentToParse = streamedContent.trim();
-                    if (!contentToParse.startsWith('{')) {
-                        contentToParse = `{ "solution": "${streamedContent}", "explanation": "", "latexExpression": "" }`;
-                    }
-
-                    const parsedContent = JSON.parse(contentToParse);
-
-                    return {
-                        originalProblem: cleanedText,
-                        solution: parsedContent.solution || 'No solution provided',
-                        explanation: parsedContent.explanation || 'No explanation provided',
-                        latexExpression: parsedContent.latexExpression || '',
-                        error: null
-                    };
-                } catch (e) {
-                    return {
-                        originalProblem: cleanedText,
-                        solution: streamedContent,
-                        explanation: 'Could not parse structured solution',
-                        latexExpression: '',
-                        error: null
-                    };
-                }
-            } catch (streamError) {
-                console.error('Stream error:', streamError);
-                throw streamError;
-            }
-        } else {
-            console.log('Using non-streaming mode');
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [
-                    {
-                        role: "system",
-                        content: "You are an expert mathematics assistant. Analyze, solve, and explain mathematical problems in detail. Provide the solution, a clear explanation of the steps, and a LaTeX representation of the mathematical expression. Format your response as JSON with 'solution', 'explanation', and 'latexExpression' fields."
-                    },
-                    {
-                        role: "user",
-                        content: `Solve this mathematical problem and explain the solution: ${cleanedText}`
-                    }
-                ],
-                response_format: { type: "json_object" }
-            });
-
-            const content = response.choices[0]?.message?.content;
-
-            if (!content) {
-                console.error('No content returned from AI');
-                throw new Error('No content returned from AI');
-            }
-
-            console.log('Received content:', content.substring(0, 50) + '...');
-            const parsedContent = JSON.parse(content);
-            console.log('JSON parsed successfully');
-
-            return {
-                originalProblem: cleanedText,
-                solution: parsedContent.solution,
-                explanation: parsedContent.explanation,
-                latexExpression: parsedContent.latexExpression,
-                error: null
-            };
+            onProgress(content);
         }
+
+        return {
+            originalProblem: cleanedText,
+            solution: parsedContent.solution,
+            explanation: parsedContent.explanation,
+            latexExpression: parsedContent.latexExpression,
+            error: null
+        };
     } catch (error) {
         console.error('Error in solveMathProblem:', error);
         return {
@@ -142,8 +77,7 @@ export const solveMathProblem = async (
 };
 
 /**
- * Solves a mathematical problem from an image using GPT-4o Vision
- * Uses a simplified, robust approach without streaming
+ * Solves a mathematical problem from an image using GPT-4o
  */
 export const solveMathProblemFromImage = async (
     imageUri: string
@@ -151,7 +85,6 @@ export const solveMathProblemFromImage = async (
     console.log('Starting math problem solution from image:', imageUri);
 
     try {
-        // Try to convert the image to base64
         let base64 = '';
         try {
             base64 = await FileSystem.readAsStringAsync(imageUri, {
@@ -180,11 +113,9 @@ export const solveMathProblemFromImage = async (
             };
         }
 
-        // Construct the data URL
         const dataUrl = `data:image/jpeg;base64,${base64}`;
         console.log('Data URL created, length:', dataUrl.length);
 
-        // Make the API call without streaming
         try {
             console.log('Making API request to OpenAI');
             const response = await openai.chat.completions.create({
@@ -210,7 +141,6 @@ export const solveMathProblemFromImage = async (
 
             console.log('API response received');
 
-            // Process the response
             const content = response.choices[0]?.message?.content;
             if (!content) {
                 console.error('No content in response:', response);
@@ -225,7 +155,6 @@ export const solveMathProblemFromImage = async (
 
             console.log('Response content:', content.substring(0, 100) + '...');
 
-            // Try to parse as JSON first
             try {
                 const parsedContent = JSON.parse(content);
                 return {
@@ -236,7 +165,6 @@ export const solveMathProblemFromImage = async (
                     error: null
                 };
             } catch (jsonError) {
-                // If not JSON, extract information manually
                 console.log('Response is not JSON, using text parsing');
 
                 const solutionMatch = content.match(/solution:?\s*(.*?)(?:\n|$)/i);

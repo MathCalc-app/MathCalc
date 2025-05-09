@@ -7,7 +7,6 @@ interface MathWebViewProps {
 }
 
 const MathWebView: React.FC<MathWebViewProps> = ({ latexExpression }) => {
-    // Create the HTML content with KaTeX
     const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">

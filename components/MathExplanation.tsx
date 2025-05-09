@@ -1,5 +1,4 @@
-﻿
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import { View, TextInput, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import { solveMathProblem } from '@/utils/mathProcessor';
 import MathWebView from '@/components/ui/MathWebView';
@@ -78,7 +77,6 @@ Explanation: ${mathProblem.explanation}
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
             >
-                {/* Original problem and solution */}
                 <View style={[styles.mathProblemContainer, { backgroundColor: tintColor }]}>
                     <Text style={styles.sectionTitle}>Original Problem</Text>
                     <Text style={styles.mathText}>{mathProblem.originalProblem}</Text>
@@ -97,7 +95,6 @@ Explanation: ${mathProblem.explanation}
                     <Text style={styles.mathText}>{mathProblem.explanation}</Text>
                 </View>
 
-                {/* Follow-up Q&A section */}
                 {answers.length > 0 && (
                     <View style={styles.answersContainer}>
                         <Text style={[styles.followupTitle, { color: textColor }]}>Follow-up Questions</Text>
@@ -120,7 +117,6 @@ Explanation: ${mathProblem.explanation}
                 )}
             </ScrollView>
 
-            {/* Question input area */}
             <View style={styles.inputContainer}>
                 <TextInput
                     style={[styles.textInput, { borderColor: tintColor, color: textColor }]}
