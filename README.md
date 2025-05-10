@@ -10,11 +10,11 @@ The app was tested on iOS
    ```bash
    npm install
    ```
-2. Add your environment variables into env-var.ts (Change env-var-example.ts to env-var.ts)
+2. Add your environment variables into eas.json (or do `eas secret:create --scope project --name NAME --value VALUE`)
 
 3. Make your code
 
-4. Start the app
+4. Start the app for developing with Expo Go
 
    ```bash
     npx expo start

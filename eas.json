@@ -3,16 +3,37 @@
     "version": ">= 16.4.1",
     "appVersionSource": "remote"
   },
+
   "build": {
+    "production": {
+      "ios": {
+        "resourceClass": "m-medium",
+        "prebuildCommand": "npx expo prebuild --non-interactive --clean"
+      },
+      "env": {
+        "EXPO_NO_DEV_MENU": "1",
+        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET",
+        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET"
+      }
+    },
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium",
+        "prebuildCommand": "npx expo prebuild --non-interactive --clean"
+      },
+      "env": {
+        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET",
+        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET"
+      }
     },
     "preview": {
-      "distribution": "internal"
-    },
-    "production": {
-      "autoIncrement": true
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET",
+        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET"
+      }
     }
   },
   "submit": {

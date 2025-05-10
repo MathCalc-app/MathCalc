@@ -1,11 +1,12 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { StyleSheet, Switch, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Switch, TouchableOpacity, Alert, TextInput, View, ScrollView } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { getSettings, saveSettings, UserSettings, clearAllData } from '@/utils/storageUtil';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useTheme } from '@/contexts/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
     const [settings, setSettings] = useState<UserSettings>({
@@ -15,11 +16,16 @@ export default function SettingsScreen() {
         notificationsEnabled: true,
     });
     const [loading, setLoading] = useState(true);
+    const [openaiApiKey, setOpenaiApiKey] = useState('');
+    const [wolframApiKey, setWolframApiKey] = useState('');
+    const [showOpenAIKey, setShowOpenAIKey] = useState(false);
+    const [showWolframKey, setShowWolframKey] = useState(false);
 
     const { theme, setTheme: setAppTheme, effectiveTheme } = useTheme();
     const tintColor = useThemeColor({}, 'tint');
     const backgroundColor = useThemeColor({}, 'background');
     const textColor = useThemeColor({}, 'text');
+    const inputBackground = effectiveTheme === 'light' ? '#FFFFFF' : '#2C2C2E';
 
     const cardBackground = effectiveTheme === 'light'
         ? '#f5f5f5'
@@ -31,6 +37,7 @@ export default function SettingsScreen() {
 
     useEffect(() => {
         loadSettings();
+        loadApiKeys();
     }, []);
 
     const loadSettings = async () => {
@@ -42,6 +49,42 @@ export default function SettingsScreen() {
             console.error('Error loading settings:', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadApiKeys = async () => {
+        try {
+            const oaiKey = await AsyncStorage.getItem('openai_api_key');
+            if (oaiKey) {
+                setOpenaiApiKey(oaiKey);
+            }
+
+            const waKey = await AsyncStorage.getItem('wolfram_alpha_api_key');
+            if (waKey) {
+                setWolframApiKey(waKey);
+            }
+        } catch (error) {
+            console.error('Error loading API keys:', error);
+        }
+    };
+
+    const saveOpenAIApiKey = async () => {
+        try {
+            await AsyncStorage.setItem('openai_api_key', openaiApiKey);
+            Alert.alert('Success', 'OpenAI API key saved successfully');
+        } catch (error) {
+            console.error('Error saving OpenAI API key:', error);
+            Alert.alert('Error', 'Failed to save OpenAI API key');
+        }
+    };
+
+    const saveWolframApiKey = async () => {
+        try {
+            await AsyncStorage.setItem('wolfram_alpha_api_key', wolframApiKey);
+            Alert.alert('Success', 'Wolfram Alpha API key saved successfully');
+        } catch (error) {
+            console.error('Error saving Wolfram Alpha API key:', error);
+            Alert.alert('Error', 'Failed to save Wolfram Alpha API key');
         }
     };
 
@@ -126,43 +169,127 @@ export default function SettingsScreen() {
 
     return (
         <ThemedView style={styles.container}>
-            <ThemedText type="title" style={styles.title}>Settings</ThemedText>
+            <ScrollView showsVerticalScrollIndicator={true} contentContainerStyle={styles.scrollContent}>
+                <ThemedText type="title" style={styles.title}>Settings</ThemedText>
 
-            <ThemedView style={[styles.section, { backgroundColor: cardBackground }]}>
-                <ThemedText style={styles.sectionTitle}>Appearance</ThemedText>
+                <ThemedView style={[styles.section, { backgroundColor: cardBackground }]}>
+                    <ThemedText style={styles.sectionTitle}>Appearance</ThemedText>
 
-                <TouchableOpacity
-                    style={[styles.settingRow, { borderBottomColor: borderColor }]}
-                    onPress={selectTheme}
-                >
-                    <ThemedView style={styles.settingInfo}>
-                        <ThemedText style={styles.settingLabel}>Theme</ThemedText>
-                        <ThemedText style={[styles.settingValue, { color: textColor, opacity: 0.6 }]}>
-                            {settings.theme === 'light' ? 'Light' :
-                                settings.theme === 'dark' ? 'Dark' : 'System Default'}
-                        </ThemedText>
-                    </ThemedView>
-                    <IconSymbol name="chevron.right" size={20} color={tintColor} />
-                </TouchableOpacity>
-            </ThemedView>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderBottomColor: borderColor }]}
+                        onPress={selectTheme}
+                    >
+                        <ThemedView style={styles.settingInfo}>
+                            <ThemedText style={styles.settingLabel}>Theme</ThemedText>
+                            <ThemedText style={[styles.settingValue, { color: textColor, opacity: 0.6 }]}>
+                                {settings.theme === 'light' ? 'Light' :
+                                    settings.theme === 'dark' ? 'Dark' : 'System Default'}
+                            </ThemedText>
+                        </ThemedView>
+                        <IconSymbol name="chevron.right" size={20} color={tintColor} />
+                    </TouchableOpacity>
+                </ThemedView>
 
-            <ThemedView style={[styles.section, { backgroundColor: cardBackground }]}>
-                <ThemedText style={styles.sectionTitle}>AI Settings</ThemedText>
+                <ThemedView style={[styles.section, { backgroundColor: cardBackground }]}>
+                    <ThemedText style={styles.sectionTitle}>AI Settings</ThemedText>
 
-                <TouchableOpacity
-                    style={[styles.settingRow, { borderBottomColor: borderColor }]}
-                    onPress={selectResponseLength}
-                >
-                    <ThemedView style={styles.settingInfo}>
-                        <ThemedText style={styles.settingLabel}>Response Detail</ThemedText>
-                        <ThemedText style={[styles.settingValue, { color: textColor, opacity: 0.6 }]}>
-                            {settings.aiResponseLength === 'concise' ? 'Concise' : 'Detailed'}
-                        </ThemedText>
-                    </ThemedView>
-                    <IconSymbol name="chevron.right" size={20} color={tintColor} />
-                </TouchableOpacity>
-            </ThemedView>
+                    <TouchableOpacity
+                        style={[styles.settingRow, { borderBottomColor: borderColor }]}
+                        onPress={selectResponseLength}
+                    >
+                        <ThemedView style={styles.settingInfo}>
+                            <ThemedText style={styles.settingLabel}>Response Detail</ThemedText>
+                            <ThemedText style={[styles.settingValue, { color: textColor, opacity: 0.6 }]}>
+                                {settings.aiResponseLength === 'concise' ? 'Concise' : 'Detailed'}
+                            </ThemedText>
+                        </ThemedView>
+                        <IconSymbol name="chevron.right" size={20} color={tintColor} />
+                    </TouchableOpacity>
 
+                    <View style={[styles.settingRow, { borderBottomColor: borderColor, paddingVertical: 16 }]}>
+                        <View style={styles.apiKeyContainer}>
+                            <ThemedText style={styles.settingLabel}>Wolfram Alpha API Key</ThemedText>
+                            <ThemedText style={[styles.settingValue, { color: textColor, opacity: 0.6, marginBottom: 8 }]}>
+                                Primary API for solving math problems from images
+                            </ThemedText>
+                            <View style={styles.apiKeyInputContainer}>
+                                <TextInput
+                                    style={[
+                                        styles.apiKeyInput,
+                                        {
+                                            backgroundColor: inputBackground,
+                                            color: textColor,
+                                            borderColor: borderColor
+                                        }
+                                    ]}
+                                    placeholder="Enter Wolfram Alpha API Key"
+                                    placeholderTextColor={effectiveTheme === 'light' ? '#999' : '#777'}
+                                    value={wolframApiKey}
+                                    onChangeText={setWolframApiKey}
+                                    secureTextEntry={!showWolframKey}
+                                />
+                                <TouchableOpacity
+                                    style={styles.toggleButton}
+                                    onPress={() => setShowWolframKey(!showWolframKey)}
+                                >
+                                    <IconSymbol
+                                        name={showWolframKey ? "eye.slash" : "eye"}
+                                        size={20}
+                                        color={tintColor}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            <TouchableOpacity
+                                style={[styles.saveButton, { backgroundColor: tintColor }]}
+                                onPress={saveWolframApiKey}
+                            >
+                                <ThemedText style={styles.saveButtonText}>Save Wolfram Alpha API Key</ThemedText>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    <View style={[styles.settingRow, { borderBottomColor: borderColor, paddingVertical: 16 }]}>
+                        <View style={styles.apiKeyContainer}>
+                            <ThemedText style={styles.settingLabel}>OpenAI API Key</ThemedText>
+                            <ThemedText style={[styles.settingValue, { color: textColor, opacity: 0.6, marginBottom: 8 }]}>
+                                Required for image recognition and fallback solver
+                            </ThemedText>
+                            <View style={styles.apiKeyInputContainer}>
+                                <TextInput
+                                    style={[
+                                        styles.apiKeyInput,
+                                        {
+                                            backgroundColor: inputBackground,
+                                            color: textColor,
+                                            borderColor: borderColor
+                                        }
+                                    ]}
+                                    placeholder="Enter OpenAI API Key"
+                                    placeholderTextColor={effectiveTheme === 'light' ? '#999' : '#777'}
+                                    value={openaiApiKey}
+                                    onChangeText={setOpenaiApiKey}
+                                    secureTextEntry={!showOpenAIKey}
+                                />
+                                <TouchableOpacity
+                                    style={styles.toggleButton}
+                                    onPress={() => setShowOpenAIKey(!showOpenAIKey)}
+                                >
+                                    <IconSymbol
+                                        name={showOpenAIKey ? "eye.slash" : "eye"}
+                                        size={20}
+                                        color={tintColor}
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                            <TouchableOpacity
+                                style={[styles.saveButton, { backgroundColor: tintColor }]}
+                                onPress={saveOpenAIApiKey}
+                            >
+                                <ThemedText style={styles.saveButtonText}>Save OpenAI API Key</ThemedText>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </ThemedView>
 
                 <ThemedView style={[styles.section, { backgroundColor: cardBackground }]}>
                     <ThemedText style={styles.sectionTitle}>Notifications</ThemedText>
@@ -181,27 +308,28 @@ export default function SettingsScreen() {
                     </ThemedView>
                 </ThemedView>
 
-            <ThemedView style={[styles.section, { backgroundColor: cardBackground }]}>
-                <ThemedText style={styles.sectionTitle}>Data</ThemedText>
+                <ThemedView style={[styles.section, { backgroundColor: cardBackground }]}>
+                    <ThemedText style={styles.sectionTitle}>Data</ThemedText>
 
-                <TouchableOpacity
-                    style={[styles.settingRow, styles.dangerRow]}
-                    onPress={handleClearData}
-                >
-                    <ThemedView style={styles.settingInfo}>
-                        <ThemedText style={[styles.settingLabel, styles.dangerText]}>
-                            Clear All Data
-                        </ThemedText>
-                    </ThemedView>
-                    <IconSymbol name="trash" size={20} color="#FF3B30" />
-                </TouchableOpacity>
-            </ThemedView>
+                    <TouchableOpacity
+                        style={[styles.settingRow, styles.dangerRow]}
+                        onPress={handleClearData}
+                    >
+                        <ThemedView style={styles.settingInfo}>
+                            <ThemedText style={[styles.settingLabel, styles.dangerText]}>
+                                Clear All Data
+                            </ThemedText>
+                        </ThemedView>
+                        <IconSymbol name="trash" size={20} color="#FF3B30" />
+                    </TouchableOpacity>
+                </ThemedView>
 
-            <ThemedView style={styles.footer}>
-                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.1
-                </ThemedText>
-            </ThemedView>
+                <ThemedView style={styles.footer}>
+                    <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
+                        MathCalc v0.0.2
+                    </ThemedText>
+                </ThemedView>
+            </ScrollView>
         </ThemedView>
     );
 }
@@ -209,8 +337,11 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 20,
+    },
+    scrollContent: {
+        paddingHorizontal: 20,
         paddingTop: 60,
+        paddingBottom: 40,
     },
     title: {
         fontSize: 28,
@@ -265,5 +396,38 @@ const styles = StyleSheet.create({
     },
     versionText: {
         fontSize: 12,
+    },
+    apiKeyContainer: {
+        width: '100%',
+    },
+    apiKeyInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    apiKeyInput: {
+        flex: 1,
+        height: 44,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        fontSize: 16,
+    },
+    toggleButton: {
+        position: 'absolute',
+        right: 12,
+        height: 44,
+        justifyContent: 'center',
+    },
+    saveButton: {
+        height: 44,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    saveButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

@@ -22,3 +22,5 @@ env-var.ts
 .idea
 package-lock.json
 .git
+certs/
+builds/
