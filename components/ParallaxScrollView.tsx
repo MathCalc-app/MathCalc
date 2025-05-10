@@ -7,6 +7,7 @@ import Animated, {
   useScrollViewOffset,
 } from 'react-native-reanimated';
 
+import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useBottomTabOverflow } from '@/components/ui/TabBarBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -15,12 +16,14 @@ const HEADER_HEIGHT = 250;
 
 type Props = PropsWithChildren<{
   headerBackgroundColor: { dark: string; light: string };
+  text?: string;
 }>;
 
 export default function ParallaxScrollView({
-  children,
-  headerBackgroundColor,
-}: Props) {
+                                             children,
+                                             headerBackgroundColor,
+                                             text,
+                                           }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const scrollOffset = useScrollViewOffset(scrollRef);
@@ -30,9 +33,9 @@ export default function ParallaxScrollView({
       transform: [
         {
           translateY: interpolate(
-            scrollOffset.value,
-            [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
-            [-HEADER_HEIGHT / 2, 0, HEADER_HEIGHT * 0.75]
+              scrollOffset.value,
+              [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
+              [-HEADER_HEIGHT / 2, 0, HEADER_HEIGHT * 0.75]
           ),
         },
         {
@@ -42,23 +45,54 @@ export default function ParallaxScrollView({
     };
   });
 
+  const textAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(
+          scrollOffset.value,
+          [0, HEADER_HEIGHT * 0.4],
+          [1, 0]
+      ),
+      transform: [
+        {
+          translateY: interpolate(
+              scrollOffset.value,
+              [-HEADER_HEIGHT, 0, HEADER_HEIGHT * 0.5],
+              [-HEADER_HEIGHT / 3, 0, HEADER_HEIGHT * 0.2]
+          ),
+        },
+        {
+          scale: interpolate(
+              scrollOffset.value,
+              [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
+              [1.5, 1, 0.8]
+          ),
+        },
+      ],
+    };
+  });
+
   return (
-    <ThemedView style={styles.container}>
-      <Animated.ScrollView
-        ref={scrollRef}
-        scrollEventThrottle={16}
-        scrollIndicatorInsets={{ bottom }}
-        contentContainerStyle={{ paddingBottom: bottom }}>
-        <Animated.View
-          style={[
-            styles.header,
-            { backgroundColor: headerBackgroundColor[colorScheme] },
-            headerAnimatedStyle,
-          ]}>
-        </Animated.View>
-        <ThemedView style={styles.content}>{children}</ThemedView>
-      </Animated.ScrollView>
-    </ThemedView>
+      <ThemedView style={styles.container}>
+        <Animated.ScrollView
+            ref={scrollRef}
+            scrollEventThrottle={16}
+            scrollIndicatorInsets={{ bottom }}
+            contentContainerStyle={{ paddingBottom: bottom }}>
+          <Animated.View
+              style={[
+                styles.header,
+                { backgroundColor: headerBackgroundColor[colorScheme] },
+                headerAnimatedStyle,
+              ]}>
+            {text && (
+                <Animated.View style={[styles.headerTextContainer, textAnimatedStyle]}>
+                  <ThemedText style={styles.headerText}>{text}</ThemedText>
+                </Animated.View>
+            )}
+          </Animated.View>
+          <ThemedView style={styles.content}>{children}</ThemedView>
+        </Animated.ScrollView>
+      </ThemedView>
   );
 }
 
@@ -69,6 +103,23 @@ const styles = StyleSheet.create({
   header: {
     height: HEADER_HEIGHT,
     overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTextContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  headerText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   content: {
     flex: 1,

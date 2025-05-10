@@ -1,6 +1,7 @@
 ﻿import { OpenAI } from 'openai';
 import * as FileSystem from 'expo-file-system';
 import { OPENAIAPIKEY } from "@/env-var";
+import { getSettings } from '@/utils/storageUtil';
 
 const openai = new OpenAI({
     apiKey: OPENAIAPIKEY || '',
@@ -15,6 +16,35 @@ interface MathProblemResult {
 }
 
 /**
+ * Gets the appropriate system prompt based on user preferences
+ */
+const getSystemPrompt = async (isForImage: boolean = false): Promise<string> => {
+    try {
+        const settings = await getSettings();
+        const isDetailedMode = settings?.aiResponseLength === 'detailed';
+
+        if (isForImage) {
+            if (isDetailedMode) {
+                return "You are an expert mathematics assistant. Analyze the image containing a math problem, solve it, and explain the solution in detail. Provide a comprehensive step-by-step explanation covering all mathematical concepts and rules used. Explain as if teaching the concept to someone who's learning the topic. Include a clear response with: 1) The original problem, 2) The final answer/solution, 3) A detailed step-by-step explanation, and 4) A LaTeX representation if applicable. Format your response as JSON with fields: 'solution', 'explanation', and 'latexExpression'.";
+            } else {
+                return "You are an expert mathematics assistant. Analyze the image containing a math problem, solve it, and explain the solution briefly. Be concise and direct - focus on the key steps only without lengthy explanations. Provide: 1) The original problem, 2) The final answer/solution, 3) A brief step-by-step explanation showing only the essential steps, and 4) A LaTeX representation if applicable. Format your response as JSON with fields: 'solution', 'explanation', and 'latexExpression'.";
+            }
+        } else {
+            if (isDetailedMode) {
+                return "You are an expert mathematics assistant. Analyze, solve, and explain mathematical problems in detail. Provide a comprehensive step-by-step explanation covering all mathematical concepts and rules used. Explain as if teaching the concept to someone who's learning the topic. Include the solution, a clear explanation of the steps, and a LaTeX representation of the mathematical expression. Format your response as JSON with 'solution', 'explanation', and 'latexExpression' fields.";
+            } else {
+                return "You are an expert mathematics assistant. Analyze, solve, and explain mathematical problems briefly and directly. Be concise - focus on the key steps only without lengthy explanations. Provide the solution, a brief explanation of the essential steps, and a LaTeX representation of the mathematical expression. Format your response as JSON with 'solution', 'explanation', and 'latexExpression' fields.";
+            }
+        }
+    } catch (error) {
+        console.error('Error getting system prompt:', error);
+        return isForImage
+            ? "You are an expert mathematics assistant. Analyze the image containing a math problem, solve it, and explain the solution in detail. Provide a clear response with: 1) The original problem, 2) The final answer/solution, 3) A step-by-step explanation, and 4) A LaTeX representation if applicable. Format your response as JSON with fields: 'solution', 'explanation', and 'latexExpression'."
+            : "You are an expert mathematics assistant. Analyze, solve, and explain mathematical problems in detail. Provide the solution, a clear explanation of the steps, and a LaTeX representation of the mathematical expression. Format your response as JSON with 'solution', 'explanation', and 'latexExpression' fields.";
+    }
+};
+
+/**
  * Solves a mathematical problem using OpenAI
  */
 export const solveMathProblem = async (
@@ -26,13 +56,15 @@ export const solveMathProblem = async (
         const cleanedText = cleanMathText(mathText);
         console.log('Cleaned text:', cleanedText);
 
+        const systemPrompt = await getSystemPrompt(false);
+
         console.log('Using non-streaming mode');
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 {
                     role: "system",
-                    content: "You are an expert mathematics assistant. Analyze, solve, and explain mathematical problems in detail. Provide the solution, a clear explanation of the steps, and a LaTeX representation of the mathematical expression. Format your response as JSON with 'solution', 'explanation', and 'latexExpression' fields."
+                    content: systemPrompt
                 },
                 {
                     role: "user",
@@ -116,6 +148,8 @@ export const solveMathProblemFromImage = async (
         const dataUrl = `data:image/jpeg;base64,${base64}`;
         console.log('Data URL created, length:', dataUrl.length);
 
+        const systemPrompt = await getSystemPrompt(true);
+
         try {
             console.log('Making API request to OpenAI');
             const response = await openai.chat.completions.create({
@@ -123,7 +157,7 @@ export const solveMathProblemFromImage = async (
                 messages: [
                     {
                         role: "system",
-                        content: "You are an expert mathematics assistant. Analyze the image containing a math problem, solve it, and explain the solution in detail. Provide a clear response with: 1) The original problem, 2) The final answer/solution, 3) A step-by-step explanation, and 4) A LaTeX representation if applicable. Format your response as JSON with fields: 'solution', 'explanation', and 'latexExpression'."
+                        content: systemPrompt
                     },
                     {
                         role: "user",
@@ -158,7 +192,7 @@ export const solveMathProblemFromImage = async (
             try {
                 const parsedContent = JSON.parse(content);
                 return {
-                    originalProblem: "Problem from image",
+                    originalProblem: parsedContent.originalProblem || "Problem from image",
                     solution: parsedContent.solution || 'Solution not provided',
                     explanation: parsedContent.explanation || 'No explanation provided',
                     latexExpression: parsedContent.latexExpression || '',
@@ -201,22 +235,7 @@ export const solveMathProblemFromImage = async (
 };
 
 /**
- * Helper function to convert a file URI to base64, for image
- */
-const getBase64FromUri = async (uri: string): Promise<string> => {
-    try {
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
-        });
-        return base64;
-    } catch (error) {
-        console.error('Error converting image to base64:', error);
-        throw error;
-    }
-};
-
-/**
- * Cleans the input math text by replacing common OCR errors
+ * Cleans the input math text by replacing common errors
  */
 const cleanMathText = (text: string) => {
     return text

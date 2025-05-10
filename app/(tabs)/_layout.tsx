@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
+import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
@@ -33,10 +33,31 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="dashboard"
+                options={{
+                    title: 'Dashboard',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="square.grid.2x2" color={color} />,
+                }}
+            />
+            <Tabs.Screen
                 name="calculator"
                 options={{
                     title: 'Calculator',
                     tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.forwardslash.minus" color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="history"
+                options={{
+                    title: 'History',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock" color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="settings"
+                options={{
+                    title: 'Settings',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="gear" color={color} />,
                 }}
             />
         </Tabs>

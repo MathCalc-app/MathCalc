@@ -8,12 +8,13 @@ import {ThemedText} from '@/components/ThemedText';
 import {ThemedView} from '@/components/ThemedView';
 import {IconSymbol} from '@/components/ui/IconSymbol';
 import {useThemeColor} from '@/hooks/useThemeColor';
-import { OCRAPIKEY } from "@/env-var";
 import { solveMathProblemFromImage } from '@/utils/mathProcessor';
 import MathWebView from '@/components/ui/MathWebView';
 import MathExplanation from "@/components/MathExplanation";
-
-const OCR_API_KEY = OCRAPIKEY || ''; // not needed tho
+import {saveProblem, incrementStreak, getStats} from '@/utils/storageUtil';
+import { StreakAnimation } from '@/components/StreakAnimation';
+import * as Haptics from 'expo-haptics';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function CalculatorScreen() {
     const [latexExpression, setLatexExpression] = useState<string>('');
@@ -26,12 +27,23 @@ export default function CalculatorScreen() {
     const [isLoading, setIsLoading] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
     const [currentMathProblem, setCurrentMathProblem] = useState<any>(null);
+    const [showStreakAnimation, setShowStreakAnimation] = useState(false);
+    const [currentStreak, setCurrentStreak] = useState(0);
 
     const cameraRef = useRef<CameraViewType>(null);
 
+    const { effectiveTheme } = useTheme();
     const backgroundColor = useThemeColor({}, 'background');
-    useThemeColor({}, 'text');
+    const textColor = useThemeColor({}, 'text');
     const tintColor = useThemeColor({}, 'tint');
+
+    const inputBackground = effectiveTheme === 'light'
+        ? '#ffffff'
+        : '#252728';
+
+    const inputBorder = effectiveTheme === 'light'
+        ? 'rgba(0,0,0,0.1)'
+        : 'transparent';
 
     useEffect(() => {
         (async () => {
@@ -40,7 +52,21 @@ export default function CalculatorScreen() {
         })();
     }, []);
 
-    const handleCalculate = () => {
+    const handleProblemSolved = async () => {
+        try {
+            const currentStreakCount = await getStats().then(stats => stats.streakDays || 0);
+            const newStreakCount = await incrementStreak();
+            setCurrentStreak(newStreakCount);
+            if (newStreakCount > currentStreakCount) {
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setShowStreakAnimation(true);
+            }
+        } catch (error) {
+            console.error('Error handling streak:', error);
+        }
+    };
+
+    const handleCalculate = async () => {
         try {
             if (!expression.trim()) {
                 setResult('Enter an expression');
@@ -55,13 +81,18 @@ export default function CalculatorScreen() {
             const calculatedResult = math.evaluate(cleanedExpression);
             setResult(calculatedResult.toString());
 
-            setCurrentMathProblem({
+            const problem = {
                 originalProblem: expression,
                 solution: calculatedResult.toString(),
                 explanation: `The expression ${expression} evaluates to ${calculatedResult}`,
-                latexExpression: '',
-                error: null
-            });
+                latexExpression: ''
+            };
+
+            setCurrentMathProblem(problem);
+
+            await saveProblem(problem);
+            await handleProblemSolved();
+
         } catch (error) {
             setResult('Error: Invalid expression');
             console.error('Calculation error:', error);
@@ -117,6 +148,17 @@ export default function CalculatorScreen() {
                 setResult(String(result.solution));
                 setCurrentMathProblem(result);
 
+                if (result.originalProblem && result.solution) {
+                    await saveProblem({
+                        originalProblem: result.originalProblem,
+                        solution: result.solution,
+                        explanation: result.explanation || '',
+                        latexExpression: result.latexExpression || ''
+                    });
+
+                    await handleProblemSolved();
+                }
+
                 if (result.latexExpression && result.latexExpression.length > 0) {
                     setLatexExpression(result.latexExpression);
                     setShowMathView(true);
@@ -169,6 +211,13 @@ export default function CalculatorScreen() {
 
     return (
         <ThemedView style={styles.container}>
+            {showStreakAnimation && (
+                <StreakAnimation
+                    streakCount={currentStreak}
+                    onAnimationComplete={() => setShowStreakAnimation(false)}
+                />
+            )}
+
             {isCameraActive ? (
                 <View style={styles.cameraContainer}>
                     <CameraView
@@ -198,14 +247,21 @@ export default function CalculatorScreen() {
                 </View>
             ) : (
                 <View style={styles.calculatorContainer}>
-                    <ThemedText type="title" style={styles.title}>Math Calculator</ThemedText>
+                    <ThemedText type="title" style={styles.title}>Calculator</ThemedText>
 
-                    <View style={[styles.expressionContainer, { backgroundColor: backgroundColor === '#fff' ? '#f5f5f5' : '#252728' }]}>
+                    <View style={[
+                        styles.expressionContainer,
+                        {
+                            backgroundColor: inputBackground,
+                            borderWidth: effectiveTheme === 'light' ? 1 : 0,
+                            borderColor: inputBorder
+                        }
+                    ]}>
                         <ThemedText style={styles.expressionText}>{expression}</ThemedText>
                     </View>
 
-                    <View style={[styles.resultContainer, { backgroundColor: tintColor, opacity: 0.9 }]}>
-                        <Text style={[styles.resultText]}>{result}</Text>
+                    <View style={[styles.resultContainer, { backgroundColor: tintColor }]}>
+                        <Text style={[styles.resultText, { color: '#fff' }]}>{result}</Text>
 
                         {currentMathProblem && (
                             <TouchableOpacity
@@ -255,7 +311,6 @@ export default function CalculatorScreen() {
                 </View>
             )}
 
-            {/* MathExplanation Modal */}
             <Modal
                 visible={showExplanation}
                 animationType="slide"
@@ -291,6 +346,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 10,
     },
     loadingText: {
         color: '#fff',
@@ -339,6 +395,7 @@ const styles = StyleSheet.create({
         paddingTop: 60,
     },
     title: {
+        fontSize: 28,
         marginBottom: 30,
         textAlign: 'center',
     },
@@ -347,6 +404,11 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginBottom: 20,
         minHeight: 80,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
     },
     expressionText: {
         fontSize: 24,
@@ -360,7 +422,6 @@ const styles = StyleSheet.create({
     resultText: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: '#fff',
     },
     explainButton: {
         marginTop: 10,
@@ -404,7 +465,6 @@ const styles = StyleSheet.create({
         width: '48%',
     },
     cameraButtonText: {
-        marginLeft: 8,
         fontSize: 16,
         fontWeight: 'bold',
         color: '#fff',
