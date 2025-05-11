@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system';
 import { getSettings } from '@/utils/storageUtil';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { notifySolutionComplete, schedulePracticeReminder } from '@/utils/notificationUtil';
 
 const getOpenAIApiKey = async (): Promise<string> => {
     try {
@@ -52,7 +53,7 @@ const getWolframAlphaApiKey = async (): Promise<string> => {
     }
 };
 
-const getOpenAIClient = async (): Promise<OpenAI> => {
+export const getOpenAIClient = async (): Promise<OpenAI> => {
     const apiKey = await getOpenAIApiKey();
 
     if (!apiKey) {
@@ -146,7 +147,8 @@ export const solveMathProblem = async (
         if (onProgress) {
             onProgress(content);
         }
-
+        await notifySolutionComplete(cleanedText);
+        await schedulePracticeReminder(1);
         return {
             originalProblem: cleanedText,
             solution: parsedContent.solution,
@@ -206,7 +208,6 @@ const callHackClubAI = async (mathExpression: string): Promise<MathProblemResult
         try {
             let jsonContent = content;
 
-            // Check if the content contains a code block with JSON
             const jsonMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
             if (jsonMatch && jsonMatch[1]) {
                 jsonContent = jsonMatch[1];
@@ -323,6 +324,7 @@ export const solveMathProblemFromImage = async (
 
         const cleanedExpression = cleanMathText(extractedExpression);
 
+        let result;
         try {
             console.log('Calling Wolfram Alpha API with expression:', cleanedExpression);
             const formattedExpression = formatForWolframAlpha(cleanedExpression);
@@ -336,9 +338,17 @@ export const solveMathProblemFromImage = async (
             } catch (hackClubError) {
                 console.error('Error using Hack Club AI, falling back to OpenAI:', hackClubError);
 
-                return await solveMathProblem(cleanedExpression);
+                result = await solveMathProblem(cleanedExpression);
             }
         }
+
+        if (result && !result.error) {
+            await notifySolutionComplete(cleanedExpression);
+            await schedulePracticeReminder(1);
+        }
+
+        return result;
+
     } catch (error) {
         console.error('Unhandled error in solveMathProblemFromImage:', error);
         return {

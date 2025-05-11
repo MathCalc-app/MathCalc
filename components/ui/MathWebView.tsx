@@ -1,12 +1,19 @@
 ﻿import React from 'react';
 import { WebView } from 'react-native-webview';
 import { View, StyleSheet } from 'react-native';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface MathWebViewProps {
     latexExpression: string;
 }
 
-const MathWebView: React.FC<MathWebViewProps> = ({ latexExpression }) => {
+const MathWebView: React.FC<MathWebViewProps> = ({ latexExpression = "" }) => {
+    const safeLatexExpression = latexExpression ? String(latexExpression) : "";
+    const { effectiveTheme } = useTheme();
+    const backgroundColor = useThemeColor({}, 'background');
+    const textColor = useThemeColor({}, 'text');
+
     const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">
@@ -21,19 +28,23 @@ const MathWebView: React.FC<MathWebViewProps> = ({ latexExpression }) => {
             margin: 0; 
             padding: 10px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: ${backgroundColor};
+            color: ${textColor};
           }
           #formula { 
             font-size: 1.2em;
             max-width: 100%;
             overflow-x: auto;
+            color: ${textColor};
           }
+          .katex { color: ${textColor}; }
         </style>
       </head>
       <body>
         <div id="formula"></div>
         <script>
           document.addEventListener("DOMContentLoaded", function() {
-            katex.render(\`${latexExpression.replace(/\\/g, '\\\\')}\`, document.getElementById("formula"), {
+            katex.render(\`${safeLatexExpression.replace(/\\/g, '\\\\')}\`, document.getElementById("formula"), {
               throwOnError: false,
               displayMode: true
             });
@@ -44,10 +55,10 @@ const MathWebView: React.FC<MathWebViewProps> = ({ latexExpression }) => {
   `;
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor }]}>
             <WebView
                 source={{ html: htmlContent }}
-                style={styles.webview}
+                style={[styles.webview, { backgroundColor }]}
                 scrollEnabled={false}
                 originWhitelist={['*']}
                 javaScriptEnabled={true}
@@ -61,10 +72,9 @@ const styles = StyleSheet.create({
         height: 100,
         width: '100%',
         marginVertical: 10,
-        backgroundColor: 'transparent',
     },
     webview: {
-        backgroundColor: 'transparent',
+        flex: 1,
     },
 });
 

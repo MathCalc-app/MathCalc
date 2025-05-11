@@ -15,6 +15,9 @@ import {saveProblem, incrementStreak, getStats} from '@/utils/storageUtil';
 import { StreakAnimation } from '@/components/StreakAnimation';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/contexts/ThemeContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { scheduleNotification, notifySolutionComplete, schedulePracticeReminder } from '@/utils/notificationUtil';
+import { sharedStyles } from '@/assets/styles/sharedStyles';
 
 export default function CalculatorScreen() {
     const [latexExpression, setLatexExpression] = useState<string>('');
@@ -92,7 +95,8 @@ export default function CalculatorScreen() {
 
             await saveProblem(problem);
             await handleProblemSolved();
-
+            await notifySolutionComplete(expression);
+            await schedulePracticeReminder(1);
         } catch (error) {
             setResult('Error: Invalid expression');
             console.error('Calculation error:', error);
@@ -157,6 +161,8 @@ export default function CalculatorScreen() {
                     });
 
                     await handleProblemSolved();
+                    await notifySolutionComplete(result.originalProblem);
+                    await schedulePracticeReminder(1);
                 }
 
                 if (result.latexExpression && result.latexExpression.length > 0) {
@@ -202,114 +208,107 @@ export default function CalculatorScreen() {
     };
 
     if (hasPermission === null) {
-        return <ThemedView style={styles.container}><ThemedText>Requesting camera permission...</ThemedText></ThemedView>;
+        return <ThemedView style={sharedStyles.container}><ThemedText>Requesting camera permission...</ThemedText></ThemedView>;
     }
 
     if (!hasPermission) {
-        return <ThemedView style={styles.container}><ThemedText>No access to camera</ThemedText></ThemedView>;
+        return <ThemedView style={sharedStyles.container}><ThemedText>No access to camera</ThemedText></ThemedView>;
     }
 
     return (
-        <ThemedView style={styles.container}>
-            {showStreakAnimation && (
-                <StreakAnimation
-                    streakCount={currentStreak}
-                    onAnimationComplete={() => setShowStreakAnimation(false)}
-                />
-            )}
+        <SafeAreaView style={{ flex: 1, backgroundColor: backgroundColor }}>
+            <ThemedView style={sharedStyles.container}>
+                {showStreakAnimation && (
+                    <StreakAnimation
+                        streakCount={currentStreak}
+                        onAnimationComplete={() => setShowStreakAnimation(false)}
+                    />
+                )}
 
-            {isCameraActive ? (
-                <View style={styles.cameraContainer}>
-                    <CameraView
-                        ref={cameraRef}
-                        style={styles.camera}
-                        type={cameraType}
-                    >
-                        <View style={styles.cameraControls}>
+                {isCameraActive ? (
+                    <View style={styles.cameraContainer}>
+                        <CameraView
+                            ref={cameraRef}
+                            style={styles.camera}
+                            type={cameraType}
+                        >
+                            <View style={styles.cameraControls}>
+                                <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
+                                    <View style={styles.captureInner} />
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.button} onPress={toggleCamera}>
+                                    <IconSymbol name="xmark" size={24} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+                        </CameraView>
+                    </View>
+                ) : (
+                    <View style={styles.calculatorContainer}>
+                        <ThemedText type="title" style={sharedStyles.title}>Calculator</ThemedText>
+
+                        <View style={[
+                            styles.expressionContainer,
+                            {
+                                backgroundColor: inputBackground,
+                                borderWidth: effectiveTheme === 'light' ? 1 : 0,
+                                borderColor: inputBorder
+                            }
+                        ]}>
+                            <ThemedText style={styles.expressionText}>{expression}</ThemedText>
+                        </View>
+
+                        <View style={[styles.resultContainer, { backgroundColor: tintColor }]}>
+                            <Text style={[styles.resultText, { color: '#fff' }]}>{result}</Text>
+
+                            {currentMathProblem && (
+                                <TouchableOpacity
+                                    style={styles.explainButton}
+                                    onPress={() => setShowExplanation(true)}
+                                >
+                                    <Text style={styles.explainButtonText}>Full Explanation & AI Help</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {showMathView && latexExpression && (
+                            <MathWebView latexExpression={latexExpression} />
+                        )}
+
+                        <View style={sharedStyles.buttonRow}>
                             <TouchableOpacity
-                                style={styles.button}
-                                onPress={() => setCameraType(
-                                    cameraType === 'back' ? 'front' : 'back'
-                                )}
+                                style={[sharedStyles.actionButton, { backgroundColor: tintColor }]}
+                                onPress={handleCalculate}
                             >
-                                <IconSymbol name="arrow.triangle.2.circlepath" size={24} color="#fff" />
+                                <Text style={sharedStyles.actionButtonText}>Calculate</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.captureButton} onPress={takePicture}>
-                                <View style={styles.captureInner} />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.button} onPress={toggleCamera}>
-                                <IconSymbol name="xmark" size={24} color="#fff" />
+                            <TouchableOpacity
+                                style={[sharedStyles.actionButton, { backgroundColor: tintColor }]}
+                                onPress={() => setExpression('')}
+                            >
+                                <Text style={sharedStyles.actionButtonText}>Clear</Text>
                             </TouchableOpacity>
                         </View>
-                    </CameraView>
-                </View>
-            ) : (
-                <View style={styles.calculatorContainer}>
-                    <ThemedText type="title" style={styles.title}>Calculator</ThemedText>
 
-                    <View style={[
-                        styles.expressionContainer,
-                        {
-                            backgroundColor: inputBackground,
-                            borderWidth: effectiveTheme === 'light' ? 1 : 0,
-                            borderColor: inputBorder
-                        }
-                    ]}>
-                        <ThemedText style={styles.expressionText}>{expression}</ThemedText>
-                    </View>
-
-                    <View style={[styles.resultContainer, { backgroundColor: tintColor }]}>
-                        <Text style={[styles.resultText, { color: '#fff' }]}>{result}</Text>
-
-                        {currentMathProblem && (
+                        <View style={styles.cameraButtonsContainer}>
                             <TouchableOpacity
-                                style={styles.explainButton}
-                                onPress={() => setShowExplanation(true)}
+                                style={[styles.cameraButton, { backgroundColor: tintColor }]}
+                                onPress={toggleCamera}
                             >
-                                <Text style={styles.explainButtonText}>Full Explanation & AI Help</Text>
+                                <Text style={styles.cameraButtonText}>Camera</Text>
                             </TouchableOpacity>
-                        )}
+
+                            <TouchableOpacity
+                                style={[styles.cameraButton, { backgroundColor: tintColor }]}
+                                onPress={pickImage}
+                            >
+                                <Text style={styles.cameraButtonText}>Gallery</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-
-                    {showMathView && latexExpression && (
-                        <MathWebView latexExpression={latexExpression} />
-                    )}
-
-                    <View style={styles.buttonRow}>
-                        <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: tintColor }]}
-                            onPress={handleCalculate}
-                        >
-                            <Text style={styles.actionButtonText}>Calculate</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: tintColor }]}
-                            onPress={() => setExpression('')}
-                        >
-                            <Text style={styles.actionButtonText}>Clear</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.cameraButtonsContainer}>
-                        <TouchableOpacity
-                            style={[styles.cameraButton, { backgroundColor: tintColor }]}
-                            onPress={toggleCamera}
-                        >
-                            <Text style={styles.cameraButtonText}>Camera</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.cameraButton, { backgroundColor: tintColor }]}
-                            onPress={pickImage}
-                        >
-                            <Text style={styles.cameraButtonText}>Gallery</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            )}
+                )}
+            </ThemedView>
 
             <Modal
                 visible={showExplanation}
@@ -325,34 +324,15 @@ export default function CalculatorScreen() {
             </Modal>
 
             {isLoading && (
-                <View style={styles.loadingOverlay}>
-                    <Text style={styles.loadingText}>Processing image...</Text>
+                <View style={sharedStyles.loadingOverlay}>
+                    <Text style={sharedStyles.loadingText}>Processing image...</Text>
                 </View>
             )}
-        </ThemedView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    loadingOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 10,
-    },
-    loadingText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
     cameraContainer: {
         flex: 1,
     },
@@ -365,7 +345,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        padding: 20,
+        padding: 50,
     },
     button: {
         alignItems: 'center',
@@ -393,11 +373,6 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 20,
         paddingTop: 60,
-    },
-    title: {
-        fontSize: 28,
-        marginBottom: 30,
-        textAlign: 'center',
     },
     expressionContainer: {
         padding: 15,
@@ -433,23 +408,6 @@ const styles = StyleSheet.create({
     explainButtonText: {
         color: '#fff',
         fontWeight: '500',
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 30,
-    },
-    actionButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 10,
-        width: '48%',
-        alignItems: 'center',
-    },
-    actionButtonText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#fff',
     },
     cameraButtonsContainer: {
         flexDirection: 'row',

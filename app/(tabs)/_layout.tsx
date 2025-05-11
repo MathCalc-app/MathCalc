@@ -18,12 +18,15 @@ export default function TabLayout() {
                 headerShown: false,
                 tabBarButton: HapticTab,
                 tabBarBackground: TabBarBackground,
-                tabBarStyle: Platform.select({
-                    ios: {
-                        position: 'absolute',
-                    },
-                    default: {},
-                }),
+                tabBarStyle: {
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    elevation: 0,
+                    height: Platform.OS === 'ios' ? 80 : 60,
+                    zIndex: 8,
+                },
             }}>
             <Tabs.Screen
                 name="index"
@@ -44,6 +47,20 @@ export default function TabLayout() {
                 options={{
                     title: 'Calculator',
                     tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.forwardslash.minus" color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="visualization"
+                options={{
+                    title: 'Visualize',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="function" color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="practice"
+                options={{
+                    title: 'Practice',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="books.vertical" color={color} />,
                 }}
             />
             <Tabs.Screen

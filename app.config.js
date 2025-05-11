@@ -2,7 +2,7 @@
     expo: {
         name: "MathCalc",
         slug: "mathcalc",
-        version: "0.0.2",
+        version: "0.0.3",
         orientation: "portrait",
         icon: "./assets/images/icon.png",
         scheme: "myapp",
@@ -24,7 +24,8 @@
             permissions: [
                 "android.permission.CAMERA",
                 "android.permission.RECORD_AUDIO"
-            ]
+            ],
+            package: "com.hackclub.mathcalc"
         },
         web: {
             bundler: "metro",

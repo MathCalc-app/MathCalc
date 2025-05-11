@@ -1,7 +1,8 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import {Camera, CameraType, type CameraView as CameraViewType, CameraView} from 'expo-camera';
+import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
+import { Camera, CameraType, type CameraView as CameraViewType, CameraView } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CameraCapture = ({ onImageCaptured }: { onImageCaptured: (uri: string) => void }) => {
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -47,7 +48,8 @@ const CameraCapture = ({ onImageCaptured }: { onImageCaptured: (uri: string) => 
                 style={styles.camera}
                 ref={cameraRef}
                 ratio="16:9"
-            >
+            />
+            <SafeAreaView style={styles.controlsContainer} edges={['bottom']}>
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity style={styles.button} onPress={takePicture}>
                         <Text style={styles.text}>Take Picture</Text>
@@ -56,7 +58,7 @@ const CameraCapture = ({ onImageCaptured }: { onImageCaptured: (uri: string) => 
                         <Text style={styles.text}>Select Image</Text>
                     </TouchableOpacity>
                 </View>
-            </CameraView>
+            </SafeAreaView>
         </View>
     );
 };
@@ -68,15 +70,19 @@ const styles = StyleSheet.create({
     camera: {
         flex: 1,
     },
-    buttonContainer: {
-        flex: 1,
-        backgroundColor: 'transparent',
-        flexDirection: 'row',
-        justifyContent: 'center',
-        margin: 20,
+    controlsContainer: {
         position: 'absolute',
         bottom: 0,
-        width: '100%',
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        marginBottom: 60,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        padding: 10,
     },
     button: {
         backgroundColor: 'white',
@@ -84,6 +90,11 @@ const styles = StyleSheet.create({
         padding: 15,
         paddingHorizontal: 20,
         margin: 10,
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
     },
     text: {
         fontSize: 14,
