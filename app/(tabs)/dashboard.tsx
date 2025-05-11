@@ -187,6 +187,11 @@ export default function DashboardScreen() {
                     />
                 }
             />
+            <ThemedView style={styles.footer}>
+                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
+                    MathCalc v0.0.4
+                </ThemedText>
+            </ThemedView>
         </ThemedView>
     );
 }
@@ -318,4 +323,13 @@ const styles = StyleSheet.create({
         fontSize: 14,
         opacity: 0.8,
     },
+    footer: {
+        marginTop: 'auto',
+        alignItems: 'center',
+        paddingVertical: 20,
+        backgroundColor: 'transparent',
+    },
+    versionText: {
+        fontSize: 12,
+    }
 });

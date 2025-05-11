@@ -14,7 +14,7 @@ export default function HistoryScreen() {
     const [loading, setLoading] = useState(true);
     const [selectedProblem, setSelectedProblem] = useState<MathProblem | null>(null);
     const [showExplanation, setShowExplanation] = useState(false);
-
+    const textColor = useThemeColor({}, 'text');
     const navigation = useNavigation();
     const tintColor = useThemeColor({}, 'tint');
 
@@ -139,6 +139,11 @@ export default function HistoryScreen() {
                     }}
                 />
             )}
+            <ThemedView style={styles.footer}>
+                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
+                    MathCalc v0.0.4
+                </ThemedText>
+            </ThemedView>
         </ThemedView>
     );
 }
@@ -212,4 +217,13 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
     },
+    footer: {
+        marginTop: 'auto',
+        alignItems: 'center',
+        paddingVertical: 20,
+        backgroundColor: 'transparent',
+    },
+    versionText: {
+        fontSize: 12,
+    }
 });

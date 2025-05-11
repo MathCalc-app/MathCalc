@@ -1,9 +1,9 @@
 {
   "cli": {
     "version": ">= 16.4.1",
-    "appVersionSource": "remote"
+    "appVersionSource": "remote",
+    "promptToConfigurePushNotifications": false
   },
-
   "build": {
     "production": {
       "ios": {

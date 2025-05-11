@@ -326,7 +326,7 @@ export default function SettingsScreen() {
 
                 <ThemedView style={styles.footer}>
                     <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                        MathCalc v0.0.3
+                        MathCalc v0.0.4
                     </ThemedText>
                 </ThemedView>
             </ScrollView>

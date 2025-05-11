@@ -223,6 +223,11 @@ export default function PracticeScreen() {
                     </>
                 )}
             </ScrollView>
+            <ThemedView style={styles.footer}>
+                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
+                    MathCalc v0.0.4
+                </ThemedText>
+            </ThemedView>
         </SafeAreaView>
     );
 }
@@ -306,4 +311,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 16,
     },
+    footer: {
+        marginTop: 'auto',
+        alignItems: 'center',
+        paddingVertical: 20,
+        backgroundColor: 'transparent',
+    },
+    versionText: {
+        fontSize: 12,
+    }
 });

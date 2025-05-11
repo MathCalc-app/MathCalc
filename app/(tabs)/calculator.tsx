@@ -328,6 +328,11 @@ export default function CalculatorScreen() {
                     <Text style={sharedStyles.loadingText}>Processing image...</Text>
                 </View>
             )}
+            <ThemedView style={styles.footer}>
+                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
+                    MathCalc v0.0.4
+                </ThemedText>
+            </ThemedView>
         </SafeAreaView>
     );
 }
@@ -427,4 +432,13 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#fff',
     },
+    footer: {
+        marginTop: 'auto',
+        alignItems: 'center',
+        paddingVertical: 20,
+        backgroundColor: 'transparent',
+    },
+    versionText: {
+        fontSize: 12,
+    }
 });

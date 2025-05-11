@@ -3,11 +3,13 @@ import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import {useThemeColor} from "@/hooks/useThemeColor";
 
 export default function HomeScreen() {
+  const textColor = useThemeColor({}, 'text');
   return (
       <ParallaxScrollView
-          headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
+          headerBackgroundColor={{ light: '#dc712f', dark: '#ff8558' }}
           text="MathCalc"
       >
         <ThemedView style={styles.titleContainer}>
@@ -41,6 +43,11 @@ export default function HomeScreen() {
             Tap the <ThemedText type="defaultSemiBold">Settings</ThemedText> tab to change settings of MathCalc, such as the theme and how the AI acts.
           </ThemedText>
         </ThemedView>
+        <ThemedView style={styles.footer}>
+          <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
+            MathCalc v0.0.4
+          </ThemedText>
+        </ThemedView>
       </ParallaxScrollView>
   );
 
@@ -63,4 +70,13 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
   },
+  footer: {
+    marginTop: 'auto',
+    alignItems: 'center',
+    paddingVertical: 20,
+    backgroundColor: 'transparent',
+  },
+  versionText: {
+    fontSize: 12,
+  }
 });
