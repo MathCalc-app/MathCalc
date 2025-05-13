@@ -2,7 +2,6 @@
 import { WebView } from 'react-native-webview';
 import { View, StyleSheet } from 'react-native';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useTheme } from '@/contexts/ThemeContext';
 
 interface MathWebViewProps {
     latexExpression: string;
@@ -10,7 +9,6 @@ interface MathWebViewProps {
 
 const MathWebView: React.FC<MathWebViewProps> = ({ latexExpression = "" }) => {
     const safeLatexExpression = latexExpression ? String(latexExpression) : "";
-    const { effectiveTheme } = useTheme();
     const backgroundColor = useThemeColor({}, 'background');
     const textColor = useThemeColor({}, 'text');
 

@@ -1,4 +1,7 @@
-﻿import TextRecognition from 'react-native-text-recognition';
+﻿/*
+ This TypeScript file is not being used, as we've moved to AI
+ */
+import TextRecognition from 'react-native-text-recognition';
 
 export const extractTextFromImage = async (imageUri: string) => {
     try {

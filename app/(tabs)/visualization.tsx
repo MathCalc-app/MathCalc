@@ -13,6 +13,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 export default function VisualizationScreen() {
     const [equation2D, setEquation2D] = useState('x^2');
     const [equation3D, setEquation3D] = useState('sin(x) * cos(y)');
+    const [paramX, setParamX] = useState('cos(t)');
+    const [paramY, setParamY] = useState('sin(t)');
+    const [polarR, setPolarR] = useState('cos(2*theta)');
+    const [tRange, setTRange] = useState({min: 0, max: 2 * Math.PI});
+    const [thetaRange, setThetaRange] = useState({min: 0, max: 2 * Math.PI});
+    const [graphType, setGraphType] = useState<'cartesian' | 'parametric' | 'polar'>('cartesian');
     const [showGraph, setShowGraph] = useState(true);
     const [show3D, setShow3D] = useState(false);
     const [xRange, setXRange] = useState({min: -10, max: 10});
@@ -42,6 +48,209 @@ export default function VisualizationScreen() {
 
     const handleVisualize3D = () => {
         setShow3D(true);
+    };
+
+    const render2DGraphOptions = () => {
+        return (
+            <View style={styles.graphTypeContainer}>
+                <TouchableOpacity
+                    style={[
+                        styles.graphTypeButton,
+                        graphType === 'cartesian' && { backgroundColor: tintColor }
+                    ]}
+                    onPress={() => setGraphType('cartesian')}
+                >
+                    <ThemedText style={graphType === 'cartesian' ? { color: '#fff', fontWeight: 'bold' } : null}>
+                        Cartesian
+                    </ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[
+                        styles.graphTypeButton,
+                        graphType === 'parametric' && { backgroundColor: tintColor }
+                    ]}
+                    onPress={() => setGraphType('parametric')}
+                >
+                    <ThemedText style={graphType === 'parametric' ? { color: '#fff', fontWeight: 'bold' } : null}>
+                        Parametric
+                    </ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[
+                        styles.graphTypeButton,
+                        graphType === 'polar' && { backgroundColor: tintColor }
+                    ]}
+                    onPress={() => setGraphType('polar')}
+                >
+                    <ThemedText style={graphType === 'polar' ? { color: '#fff', fontWeight: 'bold' } : null}>
+                        Polar
+                    </ThemedText>
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
+    const render2DInputFields = () => {
+        if (graphType === 'cartesian') {
+            return (
+                <View style={styles.inputContainer}>
+                    <ThemedText>f(x) = </ThemedText>
+                    <TextInput
+                        style={[
+                            styles.equationInput,
+                            {
+                                backgroundColor: inputBackground,
+                                borderColor: inputBorder,
+                                color: textColor
+                            }
+                        ]}
+                        value={equation2D}
+                        onChangeText={setEquation2D}
+                        placeholder="Enter function (e.g., x^2)"
+                        placeholderTextColor={effectiveTheme === 'dark' ? '#888' : '#aaa'}
+                    />
+                    <TouchableOpacity
+                        style={[styles.visualizeButton, { backgroundColor: tintColor }]}
+                        onPress={handleVisualize2D}
+                    >
+                        <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Plot</ThemedText>
+                    </TouchableOpacity>
+                </View>
+            );
+        } else if (graphType === 'parametric') {
+            return (
+                <View>
+                    <View style={styles.paramInputContainer}>
+                        <ThemedText>x(t) = </ThemedText>
+                        <TextInput
+                            style={[
+                                styles.equationInput,
+                                {
+                                    backgroundColor: inputBackground,
+                                    borderColor: inputBorder,
+                                    color: textColor
+                                }
+                            ]}
+                            value={paramX}
+                            onChangeText={setParamX}
+                            placeholder="cos(t)"
+                            placeholderTextColor={effectiveTheme === 'dark' ? '#888' : '#aaa'}
+                        />
+                    </View>
+                    <View style={styles.paramInputContainer}>
+                        <ThemedText>y(t) = </ThemedText>
+                        <TextInput
+                            style={[
+                                styles.equationInput,
+                                {
+                                    backgroundColor: inputBackground,
+                                    borderColor: inputBorder,
+                                    color: textColor
+                                }
+                            ]}
+                            value={paramY}
+                            onChangeText={setParamY}
+                            placeholder="sin(t)"
+                            placeholderTextColor={effectiveTheme === 'dark' ? '#888' : '#aaa'}
+                        />
+                    </View>
+                    <View style={styles.rangeInputGroup}>
+                        <ThemedText>t: </ThemedText>
+                        <TextInput
+                            style={[
+                                styles.rangeInput,
+                                {
+                                    backgroundColor: inputBackground,
+                                    borderColor: inputBorder,
+                                    color: textColor
+                                }
+                            ]}
+                            value={tRange.min.toString()}
+                            onChangeText={(text) => setTRange({...tRange, min: Number(text) || 0})}
+                            keyboardType="numeric"
+                        />
+                        <ThemedText> to </ThemedText>
+                        <TextInput
+                            style={[
+                                styles.rangeInput,
+                                {
+                                    backgroundColor: inputBackground,
+                                    borderColor: inputBorder,
+                                    color: textColor
+                                }
+                            ]}
+                            value={tRange.max.toString()}
+                            onChangeText={(text) => setTRange({...tRange, max: Number(text) || 0})}
+                            keyboardType="numeric"
+                        />
+                    </View>
+                    <TouchableOpacity
+                        style={[styles.visualizeButton, { backgroundColor: tintColor, marginVertical: 10 }]}
+                        onPress={handleVisualize2D}
+                    >
+                        <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Plot Parametric</ThemedText>
+                    </TouchableOpacity>
+                </View>
+            );
+        } else { // polar
+            return (
+                <View>
+                    <View style={styles.paramInputContainer}>
+                        <ThemedText>r(θ) = </ThemedText>
+                        <TextInput
+                            style={[
+                                styles.equationInput,
+                                {
+                                    backgroundColor: inputBackground,
+                                    borderColor: inputBorder,
+                                    color: textColor
+                                }
+                            ]}
+                            value={polarR}
+                            onChangeText={setPolarR}
+                            placeholder="cos(2*theta)"
+                            placeholderTextColor={effectiveTheme === 'dark' ? '#888' : '#aaa'}
+                        />
+                    </View>
+                    <View style={styles.rangeInputGroup}>
+                        <ThemedText>θ: </ThemedText>
+                        <TextInput
+                            style={[
+                                styles.rangeInput,
+                                {
+                                    backgroundColor: inputBackground,
+                                    borderColor: inputBorder,
+                                    color: textColor
+                                }
+                            ]}
+                            value={thetaRange.min.toString()}
+                            onChangeText={(text) => setThetaRange({...thetaRange, min: Number(text) || 0})}
+                            keyboardType="numeric"
+                        />
+                        <ThemedText> to </ThemedText>
+                        <TextInput
+                            style={[
+                                styles.rangeInput,
+                                {
+                                    backgroundColor: inputBackground,
+                                    borderColor: inputBorder,
+                                    color: textColor
+                                }
+                            ]}
+                            value={thetaRange.max.toString()}
+                            onChangeText={(text) => setThetaRange({...thetaRange, max: Number(text) || 0})}
+                            keyboardType="numeric"
+                        />
+                    </View>
+                    <TouchableOpacity
+                        style={[styles.visualizeButton, { backgroundColor: tintColor, marginVertical: 10 }]}
+                        onPress={handleVisualize2D}
+                    >
+                        <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Plot Polar</ThemedText>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
     };
 
     return (
@@ -86,93 +295,74 @@ export default function VisualizationScreen() {
                     <ThemedView style={[styles.sectionContainer, { backgroundColor: cardBackground }]}>
                         <ThemedText type="subtitle">2D Function Visualizer</ThemedText>
 
-                        <View style={styles.inputContainer}>
-                            <ThemedText>f(x) = </ThemedText>
-                            <TextInput
-                                style={[
-                                    styles.equationInput,
-                                    {
-                                        backgroundColor: inputBackground,
-                                        borderColor: inputBorder,
-                                        color: textColor
-                                    }
-                                ]}
-                                value={equation2D}
-                                onChangeText={setEquation2D}
-                                placeholder="Enter function (e.g., x^2)"
-                                placeholderTextColor={effectiveTheme === 'dark' ? '#888' : '#aaa'}
-                            />
-                            <TouchableOpacity
-                                style={[styles.visualizeButton, { backgroundColor: tintColor }]}
-                                onPress={handleVisualize2D}
-                            >
-                                <ThemedText style={{ color: '#fff', fontWeight: '600' }}>Plot</ThemedText>
-                            </TouchableOpacity>
-                        </View>
+                        {render2DGraphOptions()}
+                        {render2DInputFields()}
 
-                        <View style={styles.rangeContainer}>
-                            <View style={styles.rangeInputGroup}>
-                                <ThemedText>X: </ThemedText>
-                                <TextInput
-                                    style={[
-                                        styles.rangeInput,
-                                        {
-                                            backgroundColor: inputBackground,
-                                            borderColor: inputBorder,
-                                            color: textColor
-                                        }
-                                    ]}
-                                    value={xRange.min.toString()}
-                                    onChangeText={(text) => setXRange({...xRange, min: Number(text) || 0})}
-                                    keyboardType="numeric"
-                                />
-                                <ThemedText> to </ThemedText>
-                                <TextInput
-                                    style={[
-                                        styles.rangeInput,
-                                        {
-                                            backgroundColor: inputBackground,
-                                            borderColor: inputBorder,
-                                            color: textColor
-                                        }
-                                    ]}
-                                    value={xRange.max.toString()}
-                                    onChangeText={(text) => setXRange({...xRange, max: Number(text) || 0})}
-                                    keyboardType="numeric"
-                                />
-                            </View>
+                        {graphType === 'cartesian' && (
+                            <View style={styles.rangeContainer}>
+                                <View style={styles.rangeInputGroup}>
+                                    <ThemedText>X: </ThemedText>
+                                    <TextInput
+                                        style={[
+                                            styles.rangeInput,
+                                            {
+                                                backgroundColor: inputBackground,
+                                                borderColor: inputBorder,
+                                                color: textColor
+                                            }
+                                        ]}
+                                        value={xRange.min.toString()}
+                                        onChangeText={(text) => setXRange({...xRange, min: Number(text) || 0})}
+                                        keyboardType="numeric"
+                                    />
+                                    <ThemedText> to </ThemedText>
+                                    <TextInput
+                                        style={[
+                                            styles.rangeInput,
+                                            {
+                                                backgroundColor: inputBackground,
+                                                borderColor: inputBorder,
+                                                color: textColor
+                                            }
+                                        ]}
+                                        value={xRange.max.toString()}
+                                        onChangeText={(text) => setXRange({...xRange, max: Number(text) || 0})}
+                                        keyboardType="numeric"
+                                    />
+                                </View>
 
-                            <View style={styles.rangeInputGroup}>
-                                <ThemedText>Y: </ThemedText>
-                                <TextInput
-                                    style={[
-                                        styles.rangeInput,
-                                        {
-                                            backgroundColor: inputBackground,
-                                            borderColor: inputBorder,
-                                            color: textColor
-                                        }
-                                    ]}
-                                    value={yRange.min.toString()}
-                                    onChangeText={(text) => setYRange({...yRange, min: Number(text) || 0})}
-                                    keyboardType="numeric"
-                                />
-                                <ThemedText> to </ThemedText>
-                                <TextInput
-                                    style={[
-                                        styles.rangeInput,
-                                        {
-                                            backgroundColor: inputBackground,
-                                            borderColor: inputBorder,
-                                            color: textColor
-                                        }
-                                    ]}
-                                    value={yRange.max.toString()}
-                                    onChangeText={(text) => setYRange({...yRange, max: Number(text) || 0})}
-                                    keyboardType="numeric"
-                                />
+                                <View style={styles.rangeInputGroup}>
+                                    <ThemedText>Y: </ThemedText>
+                                    <TextInput
+                                        style={[
+                                            styles.rangeInput,
+                                            {
+                                                backgroundColor: inputBackground,
+                                                borderColor: inputBorder,
+                                                color: textColor
+                                            }
+                                        ]}
+                                        value={yRange.min.toString()}
+                                        onChangeText={(text) => setYRange({...yRange, min: Number(text) || 0})}
+                                        keyboardType="numeric"
+                                    />
+                                    <ThemedText> to </ThemedText>
+                                    <TextInput
+                                        style={[
+                                            styles.rangeInput,
+                                            {
+                                                backgroundColor: inputBackground,
+                                                borderColor: inputBorder,
+                                                color: textColor
+                                            }
+                                        ]}
+                                        value={yRange.max.toString()}
+                                        onChangeText={(text) => setYRange({...yRange, max: Number(text) || 0})}
+                                        keyboardType="numeric"
+                                    />
+                                </View>
                             </View>
-                        </View>
+                        )}
 
                         <MathGraph
                             equation={equation2D}
@@ -180,6 +370,14 @@ export default function VisualizationScreen() {
                             maxX={xRange.max}
                             minY={yRange.min}
                             maxY={yRange.max}
+                            graphType={graphType}
+                            paramX={paramX}
+                            paramY={paramY}
+                            polarR={polarR}
+                            tMin={tRange.min}
+                            tMax={tRange.max}
+                            thetaMin={thetaRange.min}
+                            thetaMax={thetaRange.max}
                         />
                     </ThemedView>
                 )}
@@ -318,7 +516,7 @@ export default function VisualizationScreen() {
             </ScrollView>
             <ThemedView style={styles.footer}>
                 <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.4
+                    MathCalc v0.0.7
                 </ThemedText>
             </ThemedView>
         </SafeAreaView>
@@ -357,10 +555,28 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
         elevation: 2,
     },
+    graphTypeContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginVertical: 10,
+    },
+    graphTypeButton: {
+        flex: 1,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        marginHorizontal: 4,
+        borderRadius: 6,
+        alignItems: 'center',
+    },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         marginVertical: 10,
+    },
+    paramInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 6,
     },
     equationInput: {
         flex: 1,

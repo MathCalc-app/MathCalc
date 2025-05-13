@@ -35,12 +35,14 @@ export async function requestNotificationsPermission(): Promise<boolean> {
  * @param title The notification title
  * @param body The notification body text
  * @param trigger When to show the notification (default: immediate)
+ * @param data Additional data to include with the notification
  * @returns The notification identifier or null if notifications are disabled
  */
 export async function scheduleNotification(
     title: string,
     body: string,
-    trigger: Notifications.NotificationTriggerInput = null
+    trigger: Notifications.NotificationTriggerInput = null,
+    data: { type: string } = { type: 'default' }
 ): Promise<string | null> {
     try {
         const settings = await getSettings();
@@ -63,6 +65,7 @@ export async function scheduleNotification(
                 body,
                 sound: true,
                 priority: Notifications.AndroidNotificationPriority.HIGH,
+                data
             },
             trigger,
         });
@@ -80,18 +83,35 @@ export async function scheduleNotification(
  * @param days Number of days after which to show the reminder
  */
 export async function schedulePracticeReminder(days: number = 1): Promise<void> {
-    const triggerDate = new Date();
-    triggerDate.setDate(triggerDate.getDate() + days);
-    triggerDate.setHours(18, 0, 0);
+    try {
+        const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
 
-    await scheduleNotification(
-        'Time to Practice Math',
-        'Regular practice helps reinforce concepts. Open the app to solve some problems!',
-        {
-            type: SchedulableTriggerInputTypes.DATE,
-            date: triggerDate
+        const existingReminder = scheduledNotifications.find(
+            notification => notification.content.data?.type === 'practice_reminder'
+        );
+
+        if (existingReminder) {
+            return;
         }
-    );
+
+        const triggerDate = new Date();
+        triggerDate.setDate(triggerDate.getDate() + days);
+        triggerDate.setHours(18, 0, 0);
+
+        await scheduleNotification(
+            'Time to Practice Math',
+            'Regular practice helps reinforce concepts. Open MathCalc to solve some problems!',
+            {
+                type: SchedulableTriggerInputTypes.DATE,
+                date: triggerDate
+            },
+            { type: 'practice_reminder' }
+        );
+
+        console.log('Practice reminder scheduled for', triggerDate);
+    } catch (error) {
+        console.error('Failed to schedule practice reminder:', error);
+    }
 }
 
 /**

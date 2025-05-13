@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { StyleSheet, ScrollView, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, ScrollView, View, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -8,6 +8,9 @@ import MathWebView from '@/components/ui/MathWebView';
 import { sharedStyles } from '@/assets/styles/sharedStyles';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { IconSymbol } from '@/components/ui/IconSymbol';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { incrementStat } from '@/utils/storageUtil';
 
 const topics = [
     { id: '1', name: 'Algebra', subtopics: ['Equations', 'Inequalities', 'Polynomials'] },
@@ -27,6 +30,10 @@ export default function PracticeScreen() {
         explanation: string;
     } | null>(null);
     const [showSolution, setShowSolution] = useState(false);
+    const [mode, setMode] = useState<'practice' | 'quiz'>('practice');
+    const [userAnswer, setUserAnswer] = useState('');
+    const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+    const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 });
 
     const { effectiveTheme } = useTheme();
     const backgroundColor = useThemeColor({}, 'background');
@@ -48,6 +55,8 @@ export default function PracticeScreen() {
     }) => {
         setCurrentProblem(problem);
         setShowSolution(false);
+        setUserAnswer('');
+        setIsCorrect(null);
     };
 
     const resetSelection = () => {
@@ -55,6 +64,70 @@ export default function PracticeScreen() {
         setSelectedSubtopic('');
         setCurrentProblem(null);
         setShowSolution(false);
+        setUserAnswer('');
+        setIsCorrect(null);
+    };
+
+    const toggleMode = () => {
+        setMode(mode === 'practice' ? 'quiz' : 'practice');
+        setCurrentProblem(null);
+        setShowSolution(false);
+        setUserAnswer('');
+        setIsCorrect(null);
+
+        if (mode === 'quiz') {
+            saveQuizResults();
+            setQuizScore({ correct: 0, total: 0 });
+        }
+    };
+
+    const checkAnswer = () => {
+        if (!currentProblem || !userAnswer.trim()) return;
+
+        const normalizedUserAnswer = userAnswer.trim().replace(/\s+/g, '');
+        const normalizedSolution = currentProblem.solution.replace(/\\text\{.*?\}|\\|=/g, '').trim().replace(/\s+/g, '');
+
+        const matched = normalizedUserAnswer === normalizedSolution;
+        setIsCorrect(matched);
+
+        setQuizScore(prev => ({
+            correct: prev.correct + (matched ? 1 : 0),
+            total: prev.total + 1
+        }));
+
+        setShowSolution(true);
+
+        incrementStat('totalProblemsSolved').catch(console.error);
+    };
+
+    const saveQuizResults = async () => {
+        try {
+            if (quizScore.total === 0) return;
+
+            const quizHistoryString = await AsyncStorage.getItem('quiz_history');
+            const quizHistory = quizHistoryString ? JSON.parse(quizHistoryString) : [];
+
+            quizHistory.push({
+                date: new Date().toISOString(),
+                topic: selectedTopic + (selectedSubtopic ? ` - ${selectedSubtopic}` : ''),
+                difficulty,
+                score: quizScore.correct,
+                total: quizScore.total,
+                percentage: Math.round((quizScore.correct / quizScore.total) * 100)
+            });
+
+            await AsyncStorage.setItem('quiz_history', JSON.stringify(quizHistory));
+
+            if (quizScore.total > 0) {
+                Alert.alert(
+                    "Quiz Completed!",
+                    `You scored ${quizScore.correct} out of ${quizScore.total} (${Math.round((quizScore.correct / quizScore.total) * 100)}%)`,
+                    [{ text: "OK" }]
+                );
+            }
+        } catch (error) {
+            console.error('Error saving quiz results:', error);
+        }
     };
 
     const renderTopicSelection = () => (
@@ -137,15 +210,58 @@ export default function PracticeScreen() {
         </ThemedView>
     );
 
+    const renderModeToggle = () => (
+        <ThemedView style={[styles.selectionContainer, { backgroundColor: cardBackground }]}>
+            <ThemedText type="subtitle">Select Mode</ThemedText>
+            <View style={styles.difficultyContainer}>
+                <TouchableOpacity
+                    style={[
+                        styles.difficultyButton,
+                        { backgroundColor: buttonBackground },
+                        mode === 'practice' && { backgroundColor: tintColor }
+                    ]}
+                    onPress={() => toggleMode()}
+                >
+                    <ThemedText
+                        style={mode === 'practice' ? { color: '#fff', fontWeight: 'bold' } : null}
+                    >
+                        Practice
+                    </ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[
+                        styles.difficultyButton,
+                        { backgroundColor: buttonBackground },
+                        mode === 'quiz' && { backgroundColor: tintColor }
+                    ]}
+                    onPress={() => toggleMode()}
+                >
+                    <ThemedText
+                        style={mode === 'quiz' ? { color: '#fff', fontWeight: 'bold' } : null}
+                    >
+                        Quiz
+                    </ThemedText>
+                </TouchableOpacity>
+            </View>
+        </ThemedView>
+    );
+
     return (
         <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor }}>
             <ScrollView style={sharedStyles.scrollView}>
                 <ThemedView style={styles.headerContainer}>
-                    <ThemedText type="title" style={sharedStyles.title}>Practice Problems</ThemedText>
+                    <ThemedText type="title" style={sharedStyles.title}>
+                        {mode === 'practice' ? 'Practice Problems' : 'Quiz Mode'}
+                    </ThemedText>
                     <ThemedText>
-                        Generate custom practice problems tailored to your needs
+                        {mode === 'practice'
+                            ? 'Generate custom practice problems tailored to your needs'
+                            : 'Test your knowledge with interactive quizzes'}
                     </ThemedText>
                 </ThemedView>
+
+                {renderModeToggle()}
 
                 {!selectedTopic ? (
                     renderTopicSelection()
@@ -175,6 +291,15 @@ export default function PracticeScreen() {
 
                         {renderDifficultySelection()}
 
+                        {mode === 'quiz' && (
+                            <ThemedView style={[styles.quizScoreContainer, { backgroundColor: cardBackground }]}>
+                                <ThemedText style={styles.quizScoreText}>
+                                    Score: {quizScore.correct}/{quizScore.total}
+                                    {quizScore.total > 0 && ` (${Math.round((quizScore.correct / quizScore.total) * 100)}%)`}
+                                </ThemedText>
+                            </ThemedView>
+                        )}
+
                         <ThemedView style={[styles.practiceContainer, { backgroundColor: cardBackground }]}>
                             <PracticeGenerator
                                 topic={`${selectedTopic} ${selectedSubtopic}`}
@@ -185,10 +310,40 @@ export default function PracticeScreen() {
 
                         {currentProblem && (
                             <ThemedView style={[styles.problemContainer, { backgroundColor: cardBackground }]}>
-                                <ThemedText type="subtitle">Practice Problem</ThemedText>
+                                <ThemedText type="subtitle">
+                                    {mode === 'practice' ? 'Practice Problem' : 'Quiz Question'}
+                                </ThemedText>
                                 <MathWebView latexExpression={currentProblem.question || ""} />
 
-                                {!showSolution ? (
+                                {mode === 'quiz' && !showSolution && (
+                                    <View style={styles.quizInputContainer}>
+                                        <ThemedText style={styles.yourAnswerLabel}>Your Answer:</ThemedText>
+                                        <TextInput
+                                            style={[
+                                                styles.answerInput,
+                                                {
+                                                    borderColor: effectiveTheme === 'dark' ? '#444' : '#ddd',
+                                                    color: textColor,
+                                                    backgroundColor: effectiveTheme === 'dark' ? '#2c2c2e' : '#fff'
+                                                }
+                                            ]}
+                                            value={userAnswer}
+                                            onChangeText={setUserAnswer}
+                                            placeholder="Type your answer here"
+                                            placeholderTextColor={effectiveTheme === 'dark' ? '#aaa' : '#999'}
+                                        />
+                                        <TouchableOpacity
+                                            style={[styles.submitButton, { backgroundColor: tintColor }]}
+                                            onPress={checkAnswer}
+                                        >
+                                            <ThemedText style={{ color: '#fff', fontWeight: 'bold' }}>
+                                                Submit Answer
+                                            </ThemedText>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+
+                                {mode === 'practice' && !showSolution ? (
                                     <TouchableOpacity
                                         style={[styles.solutionButton, { backgroundColor: tintColor }]}
                                         onPress={() => setShowSolution(true)}
@@ -197,8 +352,30 @@ export default function PracticeScreen() {
                                             Show Solution
                                         </ThemedText>
                                     </TouchableOpacity>
-                                ) : (
+                                ) : null}
+
+                                {showSolution && (
                                     <>
+                                        {mode === 'quiz' && (
+                                            <View style={[
+                                                styles.resultContainer,
+                                                {
+                                                    backgroundColor: isCorrect
+                                                        ? 'rgba(39, 174, 96, 0.2)'
+                                                        : 'rgba(231, 76, 60, 0.2)'
+                                                }
+                                            ]}>
+                                                <IconSymbol
+                                                    name={isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill"}
+                                                    size={24}
+                                                    color={isCorrect ? "#27AE60" : "#E74C3C"}
+                                                />
+                                                <ThemedText style={{ marginLeft: 8, fontWeight: 'bold' }}>
+                                                    {isCorrect ? "Correct!" : "Incorrect"}
+                                                </ThemedText>
+                                            </View>
+                                        )}
+
                                         <ThemedText type="defaultSemiBold" style={styles.solutionTitle}>
                                             Solution:
                                         </ThemedText>
@@ -212,9 +389,16 @@ export default function PracticeScreen() {
                                         <TouchableOpacity
                                             style={[styles.hideSolutionButton,
                                                 { borderColor: effectiveTheme === 'dark' ? '#444' : '#ddd' }]}
-                                            onPress={() => setShowSolution(false)}
+                                            onPress={() => {
+                                                setShowSolution(false);
+                                                if (mode === 'quiz') {
+                                                    setCurrentProblem(null);
+                                                }
+                                            }}
                                         >
-                                            <ThemedText>Hide Solution</ThemedText>
+                                            <ThemedText>
+                                                {mode === 'practice' ? 'Hide Solution' : 'Next Question'}
+                                            </ThemedText>
                                         </TouchableOpacity>
                                     </>
                                 )}
@@ -225,7 +409,7 @@ export default function PracticeScreen() {
             </ScrollView>
             <ThemedView style={styles.footer}>
                 <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.4
+                    MathCalc v0.0.7
                 </ThemedText>
             </ThemedView>
         </SafeAreaView>
@@ -319,5 +503,42 @@ const styles = StyleSheet.create({
     },
     versionText: {
         fontSize: 12,
+    },
+    quizInputContainer: {
+        marginTop: 16,
+    },
+    yourAnswerLabel: {
+        fontWeight: 'bold',
+        marginBottom: 8,
+    },
+    answerInput: {
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        marginBottom: 12,
+    },
+    submitButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    resultContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 8,
+        marginTop: 16,
+    },
+    quizScoreContainer: {
+        margin: 16,
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    quizScoreText: {
+        fontSize: 16,
+        fontWeight: 'bold',
     }
 });

@@ -39,7 +39,11 @@ const CameraCapture = ({ onImageCaptured }: { onImageCaptured: (uri: string) => 
         return <View />;
     }
     if (!hasPermission) {
-        return <Text>No access to camera</Text>;
+        return <Text>
+            There's an issue
+            Uh oh!
+            No access to camera! Please give me permission.
+        </Text>;
     }
 
     return (

@@ -189,7 +189,7 @@ export default function DashboardScreen() {
             />
             <ThemedView style={styles.footer}>
                 <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.4
+                    MathCalc v0.0.7
                 </ThemedText>
             </ThemedView>
         </ThemedView>

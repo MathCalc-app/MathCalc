@@ -1,9 +1,10 @@
 ﻿import React, { useState, useRef } from 'react';
-import { View, TextInput, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Switch } from 'react-native';
 import { solveMathProblem } from '@/utils/mathProcessor';
 import MathWebView from '@/components/ui/MathWebView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import StepVisualizer from './StepVisualizer';
 
 interface MathProblemResult {
     originalProblem: string;
@@ -22,6 +23,7 @@ const MathExplanation: React.FC<MathExplanationProps> = ({ mathProblem, onClose 
     const [question, setQuestion] = useState('');
     const [answers, setAnswers] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [showStepByStep, setShowStepByStep] = useState(false);
     const scrollViewRef = useRef<ScrollView>(null);
 
     const tintColor = useThemeColor({}, 'tint');
@@ -91,8 +93,30 @@ Explanation: ${mathProblem.explanation}
                         </>
                     )}
 
-                    <Text style={styles.sectionTitle}>Complete Explanation</Text>
-                    <Text style={styles.mathText}>{mathProblem.explanation}</Text>
+                    <View style={styles.viewToggleContainer}>
+                        <Text style={styles.viewToggleLabel}>
+                            {showStepByStep ? "Step-by-Step View" : "Full Explanation"}
+                        </Text>
+                        <Switch
+                            trackColor={{ false: 'rgba(255,255,255,0.3)', true: 'rgba(255,255,255,0.3)' }}
+                            thumbColor={showStepByStep ? '#fff' : '#f4f3f4'}
+                            ios_backgroundColor="rgba(255,255,255,0.3)"
+                            onValueChange={() => setShowStepByStep(!showStepByStep)}
+                            value={showStepByStep}
+                        />
+                    </View>
+
+                    {showStepByStep ? (
+                        <StepVisualizer
+                            explanation={mathProblem.explanation}
+                            latexExpression={mathProblem.latexExpression}
+                        />
+                    ) : (
+                        <>
+                            <Text style={styles.sectionTitle}>Complete Explanation</Text>
+                            <Text style={styles.mathText}>{mathProblem.explanation}</Text>
+                        </>
+                    )}
                 </View>
 
                 {answers.length > 0 && (
@@ -225,6 +249,33 @@ const styles = StyleSheet.create({
         borderRadius: 17,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    viewToggleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        padding: 10,
+        borderRadius: 8,
+        marginTop: 15,
+    },
+    viewToggleLabel: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    stepByStepButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        padding: 10,
+        borderRadius: 8,
+        marginTop: 15,
+    },
+    stepByStepButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        marginRight: 8,
     },
 });
 

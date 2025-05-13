@@ -33,5 +33,6 @@ export function IconSymbol({
   style?: StyleProp<ViewStyle>;
   weight?: SymbolWeight;
 }) {
+  // @ts-ignore
   return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }

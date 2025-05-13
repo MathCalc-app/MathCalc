@@ -4,6 +4,22 @@ import { getSettings } from '@/utils/storageUtil';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notifySolutionComplete, schedulePracticeReminder } from '@/utils/notificationUtil';
+import * as math from 'mathjs';
+
+const OFFLINE_CACHE_KEY = 'math_operations_cache';
+const IMAGE_PROCESS_CACHE_KEY = 'image_process_cache';
+
+interface CachedOperation {
+    input: string;
+    result: MathProblemResult;
+    timestamp: number;
+}
+
+interface CachedImageProcess {
+    imageHash: string;
+    extractedExpression: string;
+    timestamp: number;
+}
 
 const getOpenAIApiKey = async (): Promise<string> => {
     try {
@@ -103,6 +119,162 @@ const getSystemPrompt = async (isForImage: boolean = false): Promise<string> => 
 };
 
 /**
+ * Attempt to solve a math problem locally using mathjs
+ */
+const solveWithMathJs = (expression: string): MathProblemResult | null => {
+    try {
+        console.log('Attempting to solve with mathjs:', expression);
+        const cleanedExpression = expression
+            .replace(/÷/g, '/')
+            .replace(/×/g, '*')
+            .replace(/−/g, '-')
+            .replace(/[^\d+\-*/().^%=<>!&|]/g, '');
+
+        const result = math.evaluate(cleanedExpression);
+        console.log('Mathjs result:', result);
+
+        const solution = typeof result === 'number'
+            ? result.toString()
+            : Array.isArray(result)
+                ? result.join(', ')
+                : result.toString();
+
+        const explanation = generateBasicExplanation(cleanedExpression, solution);
+
+        return {
+            originalProblem: expression,
+            solution,
+            explanation,
+            latexExpression: `${expression} = ${solution}`,
+            error: null
+        };
+    } catch (error) {
+        console.log('Mathjs evaluation failed:', error);
+        return null;
+    }
+};
+
+/**
+ * Generate basic explanation for simple math operations
+ */
+const generateBasicExplanation = (expression: string, result: string): string => {
+    return `To solve ${expression}, I evaluated the expression directly using the order of operations (PEMDAS).\n\nThe result is ${result}.`;
+};
+
+/**
+ * Get cached math operation result if available
+ */
+const getCachedOperation = async (input: string): Promise<MathProblemResult | null> => {
+    try {
+        const cacheString = await AsyncStorage.getItem(OFFLINE_CACHE_KEY);
+        if (!cacheString) return null;
+
+        const cache: CachedOperation[] = JSON.parse(cacheString);
+        const now = Date.now();
+        const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000;
+
+        const cachedOp = cache.find(op =>
+            op.input === input && (now - op.timestamp) < MAX_CACHE_AGE
+        );
+
+        return cachedOp ? cachedOp.result : null;
+    } catch (error) {
+        console.error('Error retrieving from cache:', error);
+        return null;
+    }
+};
+
+/**
+ * Save operation to cache for offline use
+ */
+const cacheOperation = async (input: string, result: MathProblemResult): Promise<void> => {
+    try {
+        const cacheString = await AsyncStorage.getItem(OFFLINE_CACHE_KEY);
+        const cache: CachedOperation[] = cacheString ? JSON.parse(cacheString) : [];
+
+        const filteredCache = cache.filter(op => op.input !== input);
+
+        filteredCache.push({
+            input,
+            result,
+            timestamp: Date.now()
+        });
+
+        const trimmedCache = filteredCache.slice(-100);
+
+        await AsyncStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(trimmedCache));
+    } catch (error) {
+        console.error('Error saving to cache:', error);
+    }
+};
+
+/**
+ * Generate a simple hash for an image to use for caching
+ */
+const generateImageHash = async (imageUri: string): Promise<string> => {
+    try {
+        const fileInfo = await FileSystem.getInfoAsync(imageUri);
+        const sizeValue = 'size' in fileInfo && typeof fileInfo.size === 'number'
+            ? fileInfo.size
+            : 0;
+
+        return `${sizeValue}_${imageUri.split('/').pop()}`;
+    } catch (error) {
+        console.error('Error generating image hash:', error);
+        return Date.now().toString();
+    }
+};
+
+/**
+ * Get cached image processing result if available
+ */
+const getCachedImageProcess = async (imageHash: string): Promise<string | null> => {
+    try {
+        const cacheString = await AsyncStorage.getItem(IMAGE_PROCESS_CACHE_KEY);
+        if (!cacheString) return null;
+
+        const cache: CachedImageProcess[] = JSON.parse(cacheString);
+        const now = Date.now();
+        const MAX_CACHE_AGE = 30 * 24 * 60 * 60 * 1000;
+
+        const cachedProcess = cache.find(proc =>
+            proc.imageHash === imageHash && (now - proc.timestamp) < MAX_CACHE_AGE
+        );
+
+        return cachedProcess ? cachedProcess.extractedExpression : null;
+    } catch (error) {
+        console.error('Error retrieving from image cache:', error);
+        return null;
+    }
+};
+
+/**
+ * Save image processing result to cache
+ */
+const cacheImageProcess = async (imageHash: string, extractedExpression: string): Promise<void> => {
+    try {
+        const cacheString = await AsyncStorage.getItem(IMAGE_PROCESS_CACHE_KEY);
+        const cache: CachedImageProcess[] = cacheString ? JSON.parse(cacheString) : [];
+
+        const filteredCache = cache.filter(proc => proc.imageHash !== imageHash);
+
+        // Add new process
+        filteredCache.push({
+            imageHash,
+            extractedExpression,
+            timestamp: Date.now()
+        });
+
+        const trimmedCache = filteredCache.slice(-50);
+
+        // Save updated cache
+        await AsyncStorage.setItem(IMAGE_PROCESS_CACHE_KEY, JSON.stringify(trimmedCache));
+    } catch (error) {
+        console.error('Error saving to image cache:', error);
+    }
+};
+
+/**
  * Solves a mathematical problem using OpenAI
  */
 export const solveMathProblem = async (
@@ -113,6 +285,39 @@ export const solveMathProblem = async (
         console.log('Starting math problem solution for:', mathText);
         const cleanedText = cleanMathText(mathText);
         console.log('Cleaned text:', cleanedText);
+
+        const cachedResult = await getCachedOperation(cleanedText);
+        if (cachedResult) {
+            console.log('Using cached result for:', cleanedText);
+            if (onProgress) {
+                onProgress(JSON.stringify(cachedResult));
+            }
+            return cachedResult;
+        }
+
+        try {
+            const localResult = solveWithMathJs(cleanedText);
+            if (localResult) {
+                console.log('Solved locally with mathjs:', cleanedText);
+                await cacheOperation(cleanedText, localResult);
+                if (onProgress) {
+                    onProgress(JSON.stringify(localResult));
+                }
+                return localResult;
+            }
+        } catch (localError) {
+            console.log('Local solution failed, using API:', localError);
+        }
+
+        if (!(await isConnected())) {
+            return {
+                originalProblem: cleanedText,
+                solution: '',
+                explanation: '',
+                latexExpression: '',
+                error: 'No internet connection. Please connect to the internet and try again.'
+            };
+        }
 
         const systemPrompt = await getSystemPrompt(false);
         const openai = await getOpenAIClient();
@@ -144,18 +349,22 @@ export const solveMathProblem = async (
         const parsedContent = JSON.parse(content);
         console.log('JSON parsed successfully');
 
-        if (onProgress) {
-            onProgress(content);
-        }
-        await notifySolutionComplete(cleanedText);
-        await schedulePracticeReminder(1);
-        return {
+        const result = {
             originalProblem: cleanedText,
             solution: parsedContent.solution,
             explanation: parsedContent.explanation,
             latexExpression: parsedContent.latexExpression,
             error: null
         };
+
+        await cacheOperation(cleanedText, result);
+
+        if (onProgress) {
+            onProgress(content);
+        }
+        await notifySolutionComplete(cleanedText);
+        await schedulePracticeReminder(1);
+        return result;
     } catch (error) {
         console.error('Error in solveMathProblem:', error);
         return {
@@ -165,6 +374,19 @@ export const solveMathProblem = async (
             latexExpression: '',
             error: `Couldn't solve this problem: ${error instanceof Error ? error.message : String(error)}`
         };
+    }
+};
+
+/**
+ * Check if device is connected to the internet
+ */
+const isConnected = async (): Promise<boolean> => {
+    try {
+        const response = await fetch('https://www.google.com', { method: 'HEAD' });
+        return response.ok;
+    } catch (error) {
+        console.log('No internet connection:', error);
+        return false;
     }
 };
 
@@ -279,70 +501,124 @@ export const solveMathProblemFromImage = async (
     console.log('Starting math problem solution from image:', imageUri);
 
     try {
-        let base64 = '';
-        try {
-            base64 = await FileSystem.readAsStringAsync(imageUri, {
-                encoding: FileSystem.EncodingType.Base64,
+        const imageHash = await generateImageHash(imageUri);
+        console.log('Image hash:', imageHash);
+
+        const cachedExpression = await getCachedImageProcess(imageHash);
+        let extractedExpression = '';
+
+        if (cachedExpression) {
+            console.log('Using cached extracted expression:', cachedExpression);
+            extractedExpression = cachedExpression;
+        } else {
+            if (!(await isConnected())) {
+                return {
+                    originalProblem: "Problem from image",
+                    solution: '',
+                    explanation: '',
+                    latexExpression: '',
+                    error: 'No internet connection. Please connect to the internet and try again.'
+                };
+            }
+
+            let base64 = '';
+            try {
+                const optimizedUri = await optimizeImage(imageUri);
+
+                base64 = await FileSystem.readAsStringAsync(optimizedUri, {
+                    encoding: FileSystem.EncodingType.Base64,
+                });
+                console.log('Successfully converted image to base64, length:', base64.length);
+            } catch (e) {
+                console.error('Error reading image file:', e);
+                throw new Error(`Failed to read image file: ${e instanceof Error ? e.message : String(e)}`);
+            }
+
+            const dataUrl = `data:image/jpeg;base64,${base64}`;
+            const systemPrompt = "You are a helpful assistant that extracts mathematical expressions from images. Just extract and return the mathematical expression or equation exactly as it appears - don't solve it. Format it using standard notation with operators like +, -, *, /, ^, (), etc. Do not include any explanations or additional text.";
+            const openai = await getOpenAIClient();
+
+            console.log('Making API request to OpenAI to extract math expression');
+            const extractionResponse = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    {
+                        role: "system",
+                        content: systemPrompt
+                    },
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "Extract the mathematical expression or equation from this image. Only return the expression itself using standard notation with operators like +, -, *, /, ^, (), etc." },
+                            {
+                                type: "image_url",
+                                image_url: { url: dataUrl }
+                            }
+                        ]
+                    }
+                ]
             });
-            console.log('Successfully converted image to base64, length:', base64.length);
-        } catch (e) {
-            console.error('Error reading image file:', e);
-            throw new Error(`Failed to read image file: ${e instanceof Error ? e.message : String(e)}`);
+
+            extractedExpression = extractionResponse.choices[0]?.message?.content || "";
+            if (!extractedExpression) {
+                throw new Error("Failed to extract mathematical expression from image");
+            }
+
+            console.log('Extracted math expression:', extractedExpression);
+
+            await cacheImageProcess(imageHash, extractedExpression);
         }
-
-        const dataUrl = `data:image/jpeg;base64,${base64}`;
-        const systemPrompt = "You are a helpful assistant that extracts mathematical expressions from images. Just extract and return the mathematical expression or equation exactly as it appears - don't solve it. Format it using standard notation with operators like +, -, *, /, ^, (), etc. Do not include any explanations or additional text.";
-        const openai = await getOpenAIClient();
-
-        console.log('Making API request to OpenAI to extract math expression');
-        const extractionResponse = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: systemPrompt
-                },
-                {
-                    role: "user",
-                    content: [
-                        { type: "text", text: "Extract the mathematical expression or equation from this image. Only return the expression itself using standard notation with operators like +, -, *, /, ^, (), etc." },
-                        {
-                            type: "image_url",
-                            image_url: { url: dataUrl }
-                        }
-                    ]
-                }
-            ]
-        });
-
-        const extractedExpression = extractionResponse.choices[0]?.message?.content;
-        if (!extractedExpression) {
-            throw new Error("Failed to extract mathematical expression from image");
-        }
-
-        console.log('Extracted math expression:', extractedExpression);
 
         const cleanedExpression = cleanMathText(extractedExpression);
+
+        const cachedSolution = await getCachedOperation(cleanedExpression);
+        if (cachedSolution) {
+            console.log('Using cached solution for:', cleanedExpression);
+            return cachedSolution;
+        }
+
+        try {
+            const localResult = solveWithMathJs(cleanedExpression);
+            if (localResult) {
+                console.log('Solved locally with mathjs:', cleanedExpression);
+                await cacheOperation(cleanedExpression, localResult);
+                await notifySolutionComplete(cleanedExpression);
+                await schedulePracticeReminder(1);
+                return localResult;
+            }
+        } catch (localError) {
+            console.log('Local solution failed, using API:', localError);
+        }
+
+        if (!(await isConnected())) {
+            return {
+                originalProblem: cleanedExpression,
+                solution: '',
+                explanation: '',
+                latexExpression: '',
+                error: 'No internet connection. Please connect to the internet and try again.'
+            };
+        }
 
         let result;
         try {
             console.log('Calling Wolfram Alpha API with expression:', cleanedExpression);
             const formattedExpression = formatForWolframAlpha(cleanedExpression);
             const wolframResponse = await callWolframAlphaAPI(formattedExpression);
-            return extractWolframSolution(wolframResponse);
+            result = extractWolframSolution(wolframResponse);
         } catch (wolframError) {
             console.error('Error using Wolfram Alpha API, falling back to Hack Club AI:', wolframError);
 
             try {
-                return await callHackClubAI(cleanedExpression);
+                result = await callHackClubAI(cleanedExpression);
             } catch (hackClubError) {
                 console.error('Error using Hack Club AI, falling back to OpenAI:', hackClubError);
-
                 result = await solveMathProblem(cleanedExpression);
             }
         }
 
         if (result && !result.error) {
+            await cacheOperation(cleanedExpression, result);
             await notifySolutionComplete(cleanedExpression);
             await schedulePracticeReminder(1);
         }
@@ -358,6 +634,30 @@ export const solveMathProblemFromImage = async (
             latexExpression: '',
             error: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`
         };
+    }
+};
+
+/**
+ * Optimize image before processing to reduce size and improve extraction quality
+ */
+const optimizeImage = async (imageUri: string): Promise<string> => {
+    try {
+        const fileInfo = await FileSystem.getInfoAsync(imageUri);
+        if (!(fileInfo.exists) || fileInfo.size && fileInfo.size < 500000) {
+            return imageUri;
+        }
+
+        const optimizedUri = FileSystem.cacheDirectory + `optimized_${Date.now()}.jpg`;
+
+        await FileSystem.copyAsync({
+            from: imageUri,
+            to: optimizedUri
+        });
+
+        return optimizedUri;
+    } catch (error) {
+        console.error('Error optimizing image:', error);
+        return imageUri;
     }
 };
 
@@ -488,7 +788,7 @@ const generateExplanation = (problem: string, result: string): string => {
         const parts = cleaned.split('/');
         const numerator = parseInt(parts[0].trim());
         const denominator = parseInt(parts[1].trim());
-        return `To divide ${numerator} by ${denominator}, we calculate:\n\n${numerator} ÷ ${denominator} = ${result}`;
+        return `To divide ${numerator} by ${denominator}, we directly calculate:\n\n${numerator} ÷ ${denominator} = ${result}`;
     }
 
     if (cleaned.includes('(') && cleaned.includes(')')) {
@@ -567,3 +867,84 @@ const cleanMathText = (text: string) => {
         .replace(/[Zz]/g, '2')
         .replace(/\s+/g, '');
 }
+
+/**
+ * Export a simple function to evaluate an expression offline using mathjs
+ * This can be used in places where we want to do quick calculations without API calls
+ */
+export const evaluateExpression = (expression: string): string => {
+    try {
+        const cleanedExpression = expression
+            .replace(/÷/g, '/')
+            .replace(/×/g, '*')
+            .replace(/−/g, '-')
+            .replace(/[^\d+\-*/().^%=<>!&|]/g, '');
+
+        const result = math.evaluate(cleanedExpression);
+        return result.toString();
+    } catch (error) {
+        return 'Error evaluating expression';
+    }
+};
+
+/**
+ * Clears the operation cache
+ */
+export const clearMathCache = async (): Promise<void> => {
+    try {
+        await AsyncStorage.removeItem(OFFLINE_CACHE_KEY);
+        await AsyncStorage.removeItem(IMAGE_PROCESS_CACHE_KEY);
+        console.log('Math cache cleared successfully');
+    } catch (error) {
+        console.error('Error clearing math cache:', error);
+        throw error;
+    }
+};
+
+/**
+ * Returns statistics about the cached operations
+ */
+export const getMathCacheStats = async (): Promise<{
+    operationCount: number,
+    imageProcessCount: number,
+    oldestOperationDate: string | null,
+    newestOperationDate: string | null,
+    totalCacheSize: number
+}> => {
+    try {
+        const operationCacheString = await AsyncStorage.getItem(OFFLINE_CACHE_KEY);
+        const imageProcessCacheString = await AsyncStorage.getItem(IMAGE_PROCESS_CACHE_KEY);
+
+        const operationCache: CachedOperation[] = operationCacheString ? JSON.parse(operationCacheString) : [];
+        const imageProcessCache: CachedImageProcess[] = imageProcessCacheString ? JSON.parse(imageProcessCacheString) : [];
+
+        const operationTimestamps = operationCache.map(op => op.timestamp);
+
+        const oldestTimestamp = operationTimestamps.length > 0 ?
+            Math.min(...operationTimestamps) : null;
+
+        const newestTimestamp = operationTimestamps.length > 0 ?
+            Math.max(...operationTimestamps) : null;
+
+        const totalCacheSize =
+            (operationCacheString ? operationCacheString.length : 0) +
+            (imageProcessCacheString ? imageProcessCacheString.length : 0);
+
+        return {
+            operationCount: operationCache.length,
+            imageProcessCount: imageProcessCache.length,
+            oldestOperationDate: oldestTimestamp ? new Date(oldestTimestamp).toISOString() : null,
+            newestOperationDate: newestTimestamp ? new Date(newestTimestamp).toISOString() : null,
+            totalCacheSize
+        };
+    } catch (error) {
+        console.error('Error getting math cache stats:', error);
+        return {
+            operationCount: 0,
+            imageProcessCount: 0,
+            oldestOperationDate: null,
+            newestOperationDate: null,
+            totalCacheSize: 0
+        };
+    }
+};

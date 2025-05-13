@@ -2,7 +2,7 @@
     expo: {
         name: "MathCalc",
         slug: "mathcalc",
-        version: "0.0.4",
+        version: "0.0.7",
         orientation: "portrait",
         icon: "./assets/images/icon.png",
         scheme: "myapp",
