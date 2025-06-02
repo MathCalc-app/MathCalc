@@ -1,4 +1,4 @@
-﻿import * as Notifications from 'expo-notifications';
+import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { getSettings } from './storageUtil';
 import {SchedulableTriggerInputTypes} from "expo-notifications/build/Notifications.types";

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, TouchableOpacity, FlatList, RefreshControl } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -7,6 +7,7 @@ import { getStats, getSavedProblems, MathProblem, incrementStat } from '@/utils/
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
+import {AppFooter} from "@/components/AppFooter";
 
 export default function DashboardScreen() {
     const [stats, setStats] = useState({
@@ -187,11 +188,7 @@ export default function DashboardScreen() {
                     />
                 }
             />
-            <ThemedView style={styles.footer}>
-                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.7
-                </ThemedText>
-            </ThemedView>
+            <AppFooter/>
         </ThemedView>
     );
 }
@@ -330,6 +327,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     versionText: {
-        fontSize: 12,
+        fontSize: 14,
     }
 });

@@ -1,4 +1,4 @@
-﻿import { OpenAI } from 'openai';
+import { OpenAI } from 'openai';
 import * as FileSystem from 'expo-file-system';
 import { getSettings } from '@/utils/storageUtil';
 import Constants from 'expo-constants';
@@ -87,6 +87,7 @@ interface MathProblemResult {
     explanation: string;
     latexExpression: string;
     error: string | null;
+    exercises?: MathProblemResult[];
 }
 
 /**
@@ -258,7 +259,6 @@ const cacheImageProcess = async (imageHash: string, extractedExpression: string)
 
         const filteredCache = cache.filter(proc => proc.imageHash !== imageHash);
 
-        // Add new process
         filteredCache.push({
             imageHash,
             extractedExpression,
@@ -267,7 +267,6 @@ const cacheImageProcess = async (imageHash: string, extractedExpression: string)
 
         const trimmedCache = filteredCache.slice(-50);
 
-        // Save updated cache
         await AsyncStorage.setItem(IMAGE_PROCESS_CACHE_KEY, JSON.stringify(trimmedCache));
     } catch (error) {
         console.error('Error saving to image cache:', error);
@@ -382,7 +381,7 @@ export const solveMathProblem = async (
  */
 const isConnected = async (): Promise<boolean> => {
     try {
-        const response = await fetch('https://www.google.com', { method: 'HEAD' });
+        const response = await fetch('https://ocr.iakzs.lol', { method: 'HEAD' });
         return response.ok;
     } catch (error) {
         console.log('No internet connection:', error);
@@ -493,6 +492,108 @@ const formatForWolframAlpha = (expression: string): string => {
 };
 
 /**
+ * Call MathCalc's custom OCR API to extract text from an image
+ */
+const callCustomOcrApi = async (imageUri: string): Promise<string> => {
+    try {
+        console.log('Calling MathCalc custom OCR API for image:', imageUri);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.log('OCR API request timed out after 3.5s');
+        }, 3500);
+
+        let ocrApiUrl = '';
+        try {
+            ocrApiUrl = await AsyncStorage.getItem('ocr_api_url') || 'https://ocr.iakzs.lol/ocr';
+            if (!ocrApiUrl) {
+                throw new Error('OCR API URL is not configured...');
+            }
+
+            if (!ocrApiUrl.endsWith('/ocr')) {
+                ocrApiUrl = ocrApiUrl.endsWith('/') ? `${ocrApiUrl}ocr` : `${ocrApiUrl}/ocr`;
+            }
+
+            console.log('Using OCR API URL:', ocrApiUrl);
+        } catch (e) {
+            console.error('Error getting OCR API URL from settings:', e);
+            clearTimeout(timeoutId);
+            throw e;
+        }
+
+        const formData = new FormData();
+
+        const fileInfo = await FileSystem.getInfoAsync(imageUri);
+        const fileUri = imageUri;
+
+        const fileName = fileUri.split('/').pop() || `image_${Date.now()}.jpg`;
+        const fileType = fileName.endsWith('.png') ? 'image/png' :
+            fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') ? 'image/jpeg' :
+                'image/jpeg';
+
+        formData.append('image', {
+            uri: fileUri,
+            name: fileName,
+            type: fileType,
+        } as any);
+
+        console.log(`Sending image '${fileName}' (${fileType}) to OCR API`);
+
+        try {
+            const response = await fetch(ocrApiUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {},
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'No error details available');
+                console.error(`OCR API error (${response.status}): ${errorText}`);
+                throw new Error(`OCR API call failed with status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.text) {
+                console.error('OCR API returned no text:', JSON.stringify(data));
+                throw new Error('No text extracted from OCR API');
+            }
+
+            console.log('OCR API extracted text:', data.text);
+            const extractedText = data.text.trim();
+            const labeledExpressionRegex = /([A-Za-z]+\s*:)/g;
+
+            if (labeledExpressionRegex.test(extractedText) && !extractedText.includes('\n')) {
+                const formattedText = extractedText.replace(labeledExpressionRegex, (match: string, label: string, offset: number) => {
+                    return offset === 0 ? label : '\n' + label;
+                });
+                console.log('Formatted labeled expressions with line breaks:', formattedText);
+                return formattedText;
+            }
+
+            return extractedText;
+
+        } catch (fetchError: unknown) {
+            clearTimeout(timeoutId);
+
+            if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+                throw new Error('OCR API request timed out after 3.5 seconds');
+            }
+
+            throw fetchError;
+        }
+
+    } catch (error) {
+        console.error('Error calling MathCalc custom OCR API:', error);
+        throw error;
+    }
+};
+
+/**
  * Process image to extract a math problem, then solve it using various APIs
  */
 export const solveMathProblemFromImage = async (
@@ -502,7 +603,6 @@ export const solveMathProblemFromImage = async (
 
     try {
         const imageHash = await generateImageHash(imageUri);
-        console.log('Image hash:', imageHash);
 
         const cachedExpression = await getCachedImageProcess(imageHash);
         let extractedExpression = '';
@@ -521,52 +621,69 @@ export const solveMathProblemFromImage = async (
                 };
             }
 
-            let base64 = '';
             try {
                 const optimizedUri = await optimizeImage(imageUri);
 
-                base64 = await FileSystem.readAsStringAsync(optimizedUri, {
-                    encoding: FileSystem.EncodingType.Base64,
-                });
-                console.log('Successfully converted image to base64, length:', base64.length);
-            } catch (e) {
-                console.error('Error reading image file:', e);
-                throw new Error(`Failed to read image file: ${e instanceof Error ? e.message : String(e)}`);
-            }
+                try {
+                    extractedExpression = await callCustomOcrApi(optimizedUri);
+                } catch (ocrError) {
+                    console.error('Error extracting text with MathCalc custom OCR API:', ocrError);
 
-            const dataUrl = `data:image/jpeg;base64,${base64}`;
-            const systemPrompt = "You are a helpful assistant that extracts mathematical expressions from images. Just extract and return the mathematical expression or equation exactly as it appears - don't solve it. Format it using standard notation with operators like +, -, *, /, ^, (), etc. Do not include any explanations or additional text.";
-            const openai = await getOpenAIClient();
+                    const settings = await getSettings();
+                    if (settings) { // No idea why I'm doing an if (settings)
+                        console.log('Falling back to OpenAI for OCR...');
 
-            console.log('Making API request to OpenAI to extract math expression');
-            const extractionResponse = await openai.chat.completions.create({
-                model: "gpt-4o",
-                messages: [
-                    {
-                        role: "system",
-                        content: systemPrompt
-                    },
-                    {
-                        role: "user",
-                        content: [
-                            { type: "text", text: "Extract the mathematical expression or equation from this image. Only return the expression itself using standard notation with operators like +, -, *, /, ^, (), etc." },
-                            {
-                                type: "image_url",
-                                image_url: { url: dataUrl }
-                            }
-                        ]
+                        let base64 = '';
+                        try {
+                            base64 = await FileSystem.readAsStringAsync(optimizedUri, {
+                                encoding: FileSystem.EncodingType.Base64,
+                            });
+                        } catch (e) {
+                            console.error('Error reading image file:', e);
+                            throw new Error(`Failed to read image file: ${e instanceof Error ? e.message : String(e)}`);
+                        }
+
+                        const dataUrl = `data:image/jpeg;base64,${base64}`;
+                        const systemPrompt = "You are a helpful assistant that extracts mathematical expressions from images. Just extract and return the mathematical expression or equation exactly as it appears - don't solve it. Format it using standard notation with operators like +, -, *, /, ^, (), etc. Do not include any explanations or additional text.";
+                        const openai = await getOpenAIClient();
+
+                        console.log('Making API request to OpenAI to extract math expression');
+                        const extractionResponse = await openai.chat.completions.create({
+                            model: "gpt-4o",
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: systemPrompt
+                                },
+                                {
+                                    role: "user",
+                                    content: [
+                                        { type: "text", text: "Extract the mathematical expression or equation from this image. Only return the expression itself using standard notation with operators like +, -, *, /, ^, (), etc." },
+                                        {
+                                            type: "image_url",
+                                            image_url: { url: dataUrl }
+                                        }
+                                    ]
+                                }
+                            ]
+                        });
+
+                        extractedExpression = extractionResponse.choices[0]?.message?.content || "";
+                    } else {
+                        throw new Error(`Failed to extract text from image using custom OCR API: ${ocrError instanceof Error ? ocrError.message : String(ocrError)}`);
                     }
-                ]
-            });
+                }
 
-            extractedExpression = extractionResponse.choices[0]?.message?.content || "";
-            if (!extractedExpression) {
-                throw new Error("Failed to extract mathematical expression from image");
+                if (!extractedExpression) {
+                    throw new Error("Failed to extract mathematical expression from image");
+                }
+
+                console.log('Extracted math expression:', extractedExpression);
+                await cacheImageProcess(imageHash, extractedExpression);
+            } catch (error) {
+                console.error('Error in image processing:', error);
+                throw error;
             }
-
-            console.log('Extracted math expression:', extractedExpression);
-
-            await cacheImageProcess(imageHash, extractedExpression);
         }
 
         const cleanedExpression = cleanMathText(extractedExpression);
@@ -624,7 +741,6 @@ export const solveMathProblemFromImage = async (
         }
 
         return result;
-
     } catch (error) {
         console.error('Unhandled error in solveMathProblemFromImage:', error);
         return {

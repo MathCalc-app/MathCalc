@@ -1,4 +1,4 @@
-﻿
+
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';

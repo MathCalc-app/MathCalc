@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, ScrollView, TextInput, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ThemedText';
@@ -9,6 +9,7 @@ import Math3DVisualizer from '@/components/Math3DVisualizer';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { sharedStyles } from '@/assets/styles/sharedStyles';
 import { useTheme } from '@/contexts/ThemeContext';
+import {AppFooter} from "@/components/AppFooter";
 
 export default function VisualizationScreen() {
     const [equation2D, setEquation2D] = useState('x^2');
@@ -192,7 +193,7 @@ export default function VisualizationScreen() {
                     </TouchableOpacity>
                 </View>
             );
-        } else { // polar
+        } else {
             return (
                 <View>
                     <View style={styles.paramInputContainer}>
@@ -514,11 +515,7 @@ export default function VisualizationScreen() {
                     </ThemedView>
                 )}
             </ScrollView>
-            <ThemedView style={styles.footer}>
-                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.7
-                </ThemedText>
-            </ThemedView>
+            <AppFooter/>
         </SafeAreaView>
     );
 }
@@ -588,8 +585,10 @@ const styles = StyleSheet.create({
     },
     visualizeButton: {
         paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingVertical: 12,
         borderRadius: 6,
+        minHeight: 44,
+        minWidth: 44
     },
     rangeContainer: {
         marginVertical: 10,
@@ -600,8 +599,8 @@ const styles = StyleSheet.create({
         marginVertical: 6,
     },
     rangeInput: {
-        width: 50,
-        height: 36,
+        width: 60,
+        height: 44,
         borderWidth: 1,
         borderRadius: 6,
         paddingHorizontal: 8,
@@ -614,6 +613,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     versionText: {
-        fontSize: 12,
+        fontSize: 14,
     }
 });

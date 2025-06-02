@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Switch, TouchableOpacity, Alert, TextInput, View, ScrollView } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -7,6 +7,7 @@ import { getSettings, saveSettings, UserSettings, clearAllData } from '@/utils/s
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useTheme } from '@/contexts/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppFooter } from "@/components/AppFooter";
 
 export default function SettingsScreen() {
     const [settings, setSettings] = useState<UserSettings>({
@@ -323,12 +324,7 @@ export default function SettingsScreen() {
                         <IconSymbol name="trash" size={20} color="#FF3B30" />
                     </TouchableOpacity>
                 </ThemedView>
-
-                <ThemedView style={styles.footer}>
-                    <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                        MathCalc v0.0.7
-                    </ThemedText>
-                </ThemedView>
+                <AppFooter/>
             </ScrollView>
         </ThemedView>
     );
@@ -395,7 +391,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     versionText: {
-        fontSize: 12,
+        fontSize: 14,
     },
     apiKeyContainer: {
         width: '100%',

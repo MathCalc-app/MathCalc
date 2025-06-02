@@ -1,8 +1,8 @@
-﻿export default {
+export default {
     expo: {
         name: "MathCalc",
         slug: "mathcalc",
-        version: "0.0.7",
+        version: "0.0.10",
         orientation: "portrait",
         icon: "./assets/images/icon.png",
         scheme: "myapp",
@@ -66,9 +66,9 @@
                 origin: false
             },
             eas: {
-                projectId: "88b3304c-eca7-46b6-bb30-ecf877342bf2"
+                projectId: "88b3304c-eca7-46b6-bb30-ecf877342bf2" // please change to your projectId, or you'll get errors everytime
             }
         },
-        owner: "kzthekz"
+        owner: "kzthekz" // also change on here to your account username
     }
 };

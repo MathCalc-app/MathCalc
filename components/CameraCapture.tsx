@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
 import { Camera, CameraType, type CameraView as CameraViewType, CameraView } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';

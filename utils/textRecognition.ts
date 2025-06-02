@@ -1,4 +1,4 @@
-﻿/*
+/*
  This TypeScript file is not being used, as we've moved to AI
  */
 import TextRecognition from 'react-native-text-recognition';

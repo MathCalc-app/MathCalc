@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ThemedText } from '@/components/ThemedText';
@@ -7,7 +7,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { getSavedProblems, deleteProblem, MathProblem } from '@/utils/storageUtil';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import MathExplanation from '@/components/MathExplanation';
-import {router} from "expo-router";
+import { router } from "expo-router";
+import {AppFooter} from "@/components/AppFooter";
 
 export default function HistoryScreen() {
     const [problems, setProblems] = useState<MathProblem[]>([]);
@@ -139,11 +140,7 @@ export default function HistoryScreen() {
                     }}
                 />
             )}
-            <ThemedView style={styles.footer}>
-                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.7
-                </ThemedText>
-            </ThemedView>
+            <AppFooter/>
         </ThemedView>
     );
 }
@@ -224,6 +221,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     versionText: {
-        fontSize: 12,
+        fontSize: 14,
     }
 });

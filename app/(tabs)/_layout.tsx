@@ -36,24 +36,10 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
-                name="dashboard"
-                options={{
-                    title: 'Dashboard',
-                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="square.grid.2x2" color={color} />,
-                }}
-            />
-            <Tabs.Screen
                 name="calculator"
                 options={{
                     title: 'Calculator',
                     tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.forwardslash.minus" color={color} />,
-                }}
-            />
-            <Tabs.Screen
-                name="visualization"
-                options={{
-                    title: 'Visualize',
-                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="function" color={color} />,
                 }}
             />
             <Tabs.Screen
@@ -71,10 +57,34 @@ export default function TabLayout() {
                 }}
             />
             <Tabs.Screen
+                name="more"
+                options={{
+                    title: 'More',
+                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="ellipsis" color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="dashboard"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="visualization"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="settings"
                 options={{
-                    title: 'Settings',
-                    tabBarIcon: ({ color }) => <IconSymbol size={28} name="gear" color={color} />,
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="license"
+                options={{
+                    href: null,
                 }}
             />
         </Tabs>

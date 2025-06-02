@@ -12,8 +12,8 @@
       },
       "env": {
         "EXPO_NO_DEV_MENU": "1",
-        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET",
-        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET"
+        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET_ON_EAS_SECRET",
+        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET_ON_EAS_SECRET"
       }
     },
     "development": {
@@ -24,15 +24,15 @@
         "prebuildCommand": "npx expo prebuild --non-interactive --clean"
       },
       "env": {
-        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET",
-        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET"
+        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET_ON_EAS_SECRET",
+        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET_ON_EAS_SECRET"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET",
-        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET"
+        "EXPO_PUBLIC_OPENAI_API_KEY": "WILL_BE_SET_ON_EAS_SECRET",
+        "EXPO_PUBLIC_WOLFRAM_ALPHA_API_KEY": "WILL_BE_SET_ON_EAS_SECRET"
       }
     }
   },

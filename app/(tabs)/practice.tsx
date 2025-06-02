@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ThemedText';
@@ -11,6 +11,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { incrementStat } from '@/utils/storageUtil';
+import MixedLatexText from "@/components/ui/MixedLatexText";
+import {AppFooter} from "@/components/AppFooter";
 
 const topics = [
     { id: '1', name: 'Algebra', subtopics: ['Equations', 'Inequalities', 'Polynomials'] },
@@ -85,7 +87,9 @@ export default function PracticeScreen() {
         if (!currentProblem || !userAnswer.trim()) return;
 
         const normalizedUserAnswer = userAnswer.trim().replace(/\s+/g, '');
-        const normalizedSolution = currentProblem.solution.replace(/\\text\{.*?\}|\\|=/g, '').trim().replace(/\s+/g, '');
+        const normalizedSolution = typeof currentProblem.solution === 'string'
+            ? currentProblem.solution.replace(/\\text\{.*?\}|\\|=/g, '').trim().replace(/\s+/g, '')
+            : 'An error occurred. Code: 592';
 
         const matched = normalizedUserAnswer === normalizedSolution;
         setIsCorrect(matched);
@@ -313,7 +317,7 @@ export default function PracticeScreen() {
                                 <ThemedText type="subtitle">
                                     {mode === 'practice' ? 'Practice Problem' : 'Quiz Question'}
                                 </ThemedText>
-                                <MathWebView latexExpression={currentProblem.question || ""} />
+                                <MixedLatexText text={currentProblem.question || ""} />
 
                                 {mode === 'quiz' && !showSolution && (
                                     <View style={styles.quizInputContainer}>
@@ -379,12 +383,12 @@ export default function PracticeScreen() {
                                         <ThemedText type="defaultSemiBold" style={styles.solutionTitle}>
                                             Solution:
                                         </ThemedText>
-                                        <MathWebView latexExpression={currentProblem.solution || ""} />
+                                        <MixedLatexText text={currentProblem.solution || ""} />
 
                                         <ThemedText type="defaultSemiBold" style={styles.solutionTitle}>
                                             Explanation:
                                         </ThemedText>
-                                        <ThemedText>{currentProblem.explanation || ""}</ThemedText>
+                                        <MixedLatexText text={currentProblem.explanation || ""} />
 
                                         <TouchableOpacity
                                             style={[styles.hideSolutionButton,
@@ -407,11 +411,7 @@ export default function PracticeScreen() {
                     </>
                 )}
             </ScrollView>
-            <ThemedView style={styles.footer}>
-                <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                    MathCalc v0.0.7
-                </ThemedText>
-            </ThemedView>
+            <AppFooter/>
         </SafeAreaView>
     );
 }
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     versionText: {
-        fontSize: 12,
+        fontSize: 14,
     },
     quizInputContainer: {
         marginTop: 16,

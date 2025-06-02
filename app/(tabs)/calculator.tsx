@@ -1,4 +1,4 @@
-﻿import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
     Alert,
     StyleSheet,
@@ -32,6 +32,8 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {scheduleNotification, notifySolutionComplete, schedulePracticeReminder} from '@/utils/notificationUtil';
 import {sharedStyles} from '@/assets/styles/sharedStyles';
 import AdvancedCalculator from '@/components/AdvancedCalculator';
+import { Dimensions } from 'react-native';
+import { AppFooter } from "@/components/AppFooter";
 
 const unitConversions = {
     length: {
@@ -78,6 +80,8 @@ export default function CalculatorScreen() {
     const [useScientificNotation, setUseScientificNotation] = useState(false);
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [steps, setSteps] = useState<string[]>([]);
+    const [exercises, setExercises] = useState<any[]>([]);
+    const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
 
     const cameraRef = useRef<CameraViewType>(null);
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -86,6 +90,8 @@ export default function CalculatorScreen() {
     const backgroundColor = useThemeColor({}, 'background');
     const textColor = useThemeColor({}, 'text');
     const tintColor = useThemeColor({}, 'tint');
+
+    const [keypadMode, setKeypadMode] = useState<'basic' | 'scientific'>('basic');
 
     const inputBackground = effectiveTheme === 'light'
         ? '#ffffff'
@@ -101,6 +107,92 @@ export default function CalculatorScreen() {
             setHasPermission(status === 'granted');
         })();
     }, []);
+
+    const exerciseSwipeAnim = useRef(new Animated.Value(0)).current;
+
+    const exercisePanResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (evt, gestureState) =>
+                Math.abs(gestureState.dx) > 20,
+            onPanResponderGrant: () => {
+                exerciseSwipeAnim.setValue(0);
+            },
+            onPanResponderMove: (evt, gestureState) => {
+                exerciseSwipeAnim.setValue(gestureState.dx);
+            },
+            onPanResponderRelease: (evt, gestureState) => {
+                if (gestureState.dx > 120 && currentExerciseIndex > 0) {
+                    Animated.timing(exerciseSwipeAnim, {
+                        toValue: 300,
+                        duration: 250,
+                        useNativeDriver: true
+                    }).start(() => {
+                        const newIndex = currentExerciseIndex - 1;
+                        setCurrentExerciseIndex(newIndex);
+                        const exercise = exercises[newIndex];
+                        setCurrentMathProblem(exercise);
+                        setExpression(exercise.originalProblem);
+                        setResult(exercise.solution);
+
+                        if (exercise.explanation) {
+                            const stepsArray = exercise.explanation
+                                .split('\n')
+                                .filter((step: string) => step.trim().length > 0);
+                            setSteps(stepsArray);
+                            setCurrentStepIndex(0);
+                        }
+
+                        if (exercise.latexExpression && exercise.latexExpression.length > 0) {
+                            setLatexExpression(exercise.latexExpression);
+                            setShowMathView(true);
+                        } else {
+                            setLatexExpression('');
+                            setShowMathView(false);
+                        }
+
+                        exerciseSwipeAnim.setValue(0);
+                    });
+                } else if (gestureState.dx < -120 && currentExerciseIndex < exercises.length - 1) {
+                    Animated.timing(exerciseSwipeAnim, {
+                        toValue: -300,
+                        duration: 250,
+                        useNativeDriver: true
+                    }).start(() => {
+                        const newIndex = currentExerciseIndex + 1;
+                        setCurrentExerciseIndex(newIndex);
+                        const exercise = exercises[newIndex];
+                        setCurrentMathProblem(exercise);
+                        setExpression(exercise.originalProblem);
+                        setResult(exercise.solution);
+
+                        if (exercise.explanation) {
+                            const stepsArray = exercise.explanation
+                                .split('\n')
+                                .filter((step: string) => step.trim().length > 0);
+                            setSteps(stepsArray);
+                            setCurrentStepIndex(0);
+                        }
+
+                        if (exercise.latexExpression && exercise.latexExpression.length > 0) {
+                            setLatexExpression(exercise.latexExpression);
+                            setShowMathView(true);
+                        } else {
+                            setLatexExpression('');
+                            setShowMathView(false);
+                        }
+
+                        exerciseSwipeAnim.setValue(0);
+                    });
+                } else {
+                    Animated.spring(exerciseSwipeAnim, {
+                        toValue: 0,
+                        useNativeDriver: true
+                    }).start();
+                }
+            }
+        })
+    ).current;
 
     const panResponder = useRef(
         PanResponder.create({
@@ -196,61 +288,236 @@ export default function CalculatorScreen() {
                 return;
             }
 
+            const labeledDataRegex = /^[A-Za-z]+\s*:|\n[A-Za-z]+\s*:/;
+            const hasMultipleLines = expression.includes('\n');
+            const hasLabels = labeledDataRegex.test(expression);
+
+            if (hasLabels || hasMultipleLines) {
+                setResult(expression);
+
+                const steps = [
+                    "Detected labeled data or multi-line text input.",
+                    "Format recognized as labeled expressions (e.g., A: value, B: value).",
+                    "No calculation performed - displaying as formatted text."
+                ];
+
+                setSteps(steps);
+                setCurrentStepIndex(0);
+
+                const problem = {
+                    originalProblem: expression,
+                    solution: expression,
+                    explanation: "This appears to be labeled data or multiple expressions (like A: value, B: value). " +
+                        "This format is typically used for reference or to present multiple values. " +
+                        "No calculation was performed as this is not a single mathematical expression.",
+                    latexExpression: ''
+                };
+
+                const updatedExercises = [...exercises, problem];
+                setExercises(updatedExercises);
+                setCurrentExerciseIndex(updatedExercises.length - 1);
+                setCurrentMathProblem(problem);
+
+                await saveProblem(problem);
+                await handleProblemSolved();
+                await notifySolutionComplete("Labeled data saved");
+                return;
+            }
+
             let processedExpression = expression;
             const openParenCount = (expression.match(/\(/g) || []).length;
             const closeParenCount = (expression.match(/\)/g) || []).length;
 
-            if (openParenCount > closeParenCount) {
-                processedExpression += ')'.repeat(openParenCount - closeParenCount);
-            }
-
-            const cleanedExpression = processedExpression
-                .replace(/x/g, '*')
-                .replace(/÷/g, '/')
-                .replace(/[^\d+\-*/().e]/g, '');
-
-            const calculatedResult = math.evaluate(cleanedExpression);
-            const formattedResult = useScientificNotation ?
-                formatScientific(calculatedResult) : calculatedResult.toString();
-
-            setResult(formattedResult);
-
             const steps = [];
             steps.push(`Start with the expression: ${expression}`);
 
-            if (openParenCount !== closeParenCount) {
+            if (openParenCount > closeParenCount) {
+                processedExpression += ')'.repeat(openParenCount - closeParenCount);
                 steps.push(`Balance parentheses: ${processedExpression}`);
             }
 
-            if (cleanedExpression.includes('(') && cleanedExpression.includes(')')) {
-                steps.push(`Evaluate expressions inside parentheses first`);
+            let cleanedExpression = processedExpression
+                .replace(/x/g, '*')
+                .replace(/÷/g, '/')
+                .replace(/π/g, 'pi')
+                .replace(/\^/g, '**')
+                .replace(/log10\(/g, 'log10(')
+                .replace(/log\(/g, 'log(')
+                .replace(/sin\(/g, 'sin(')
+                .replace(/cos\(/g, 'cos(')
+                .replace(/tan\(/g, 'tan(')
+                .replace(/sqrt\(/g, 'sqrt(')
+                .replace(/(\d+)!/g, 'factorial($1)');
+
+            if (cleanedExpression !== processedExpression) {
+                steps.push(`Convert to standard notation: ${cleanedExpression}`);
             }
+
+            if (cleanedExpression.includes('(')) {
+                steps.push(`Evaluate expressions inside parentheses`);
+
+                let tempExpression = cleanedExpression;
+                const parenthesesRegex = /\(([^()]+)\)/g;
+                let match;
+
+                let parenthesesReplaced = false;
+                while ((match = parenthesesRegex.exec(cleanedExpression)) !== null) {
+                    const innerExpression = match[1];
+                    try {
+                        const innerResult = math.evaluate(innerExpression);
+                        tempExpression = tempExpression.replace(match[0], innerResult.toString());
+                        steps.push(`Calculate (${innerExpression}) = ${innerResult}`);
+                        parenthesesReplaced = true;
+                    } catch (error) {
+                        steps.push(`Error evaluating (${innerExpression})`);
+                    }
+                }
+
+                if (parenthesesReplaced) {
+                    cleanedExpression = tempExpression;
+                    steps.push(`After evaluating parentheses: ${cleanedExpression}`);
+                }
+            }
+
+            const functionRegex = /(sin|cos|tan|log|log10|sqrt)\(([^()]+)\)/g;
+            let match;
+            let functionReplaced = false;
+            let tempExpression = cleanedExpression;
+
+            while ((match = functionRegex.exec(cleanedExpression)) !== null) {
+                const [fullMatch, funcName, argument] = match;
+                try {
+                    const funcResult = math.evaluate(fullMatch);
+                    tempExpression = tempExpression.replace(fullMatch, funcResult.toString());
+                    steps.push(`Calculate ${funcName}(${argument}) = ${funcResult}`);
+                    functionReplaced = true;
+                } catch (error) {
+                    steps.push(`Error evaluating ${funcName}(${argument})`);
+                }
+            }
+
+            if (functionReplaced) {
+                cleanedExpression = tempExpression;
+                steps.push(`After evaluating functions: ${cleanedExpression}`);
+            }
+
+            if (cleanedExpression.includes('**')) {
+                steps.push(`Perform exponentiation operations`);
+                const expRegex = /(\-?\d*\.?\d+)\*\*(\-?\d*\.?\d+)/;
+
+                let expReplaced = false;
+                while (expRegex.test(cleanedExpression)) {
+                    cleanedExpression = cleanedExpression.replace(expRegex, (match, base, exponent) => {
+                        const result = Math.pow(Number(base), Number(exponent));
+                        steps.push(`Calculate ${base} ^ ${exponent} = ${result}`);
+                        expReplaced = true;
+                        return result.toString();
+                    });
+                }
+
+                if (expReplaced) {
+                    steps.push(`After exponentiation: ${cleanedExpression}`);
+                }
+            }
+
             if (cleanedExpression.includes('*') || cleanedExpression.includes('/')) {
                 steps.push(`Perform multiplication and division operations`);
+
+                const mdRegex = /(\-?\d*\.?\d+)([*/])(\-?\d*\.?\d+)/;
+                let mdReplaced = false;
+
+                while (mdRegex.test(cleanedExpression)) {
+                    cleanedExpression = cleanedExpression.replace(mdRegex, (match, left, operator, right) => {
+                        const leftNum = Number(left);
+                        const rightNum = Number(right);
+                        const result = operator === '*' ? leftNum * rightNum : leftNum / rightNum;
+                        steps.push(`Calculate ${left} ${operator === '*' ? '×' : '÷'} ${right} = ${result}`);
+                        mdReplaced = true;
+                        return result.toString();
+                    });
+                }
+
+                if (mdReplaced) {
+                    steps.push(`After multiplication and division: ${cleanedExpression}`);
+                }
             }
-            if (cleanedExpression.includes('+') || cleanedExpression.includes('-')) {
+
+            if (cleanedExpression.includes('+') || /[^\d\.][\-]/.test(cleanedExpression)) {
                 steps.push(`Perform addition and subtraction operations`);
+
+                if (cleanedExpression.startsWith('-')) {
+                    cleanedExpression = '0' + cleanedExpression;
+                }
+
+                const asRegex = /(\-?\d*\.?\d+)([\+\-])(\d*\.?\d+)/;
+                let asReplaced = false;
+
+                while (asRegex.test(cleanedExpression)) {
+                    cleanedExpression = cleanedExpression.replace(asRegex, (match, left, operator, right) => {
+                        const leftNum = Number(left);
+                        const rightNum = Number(right);
+                        const result = operator === '+' ? leftNum + rightNum : leftNum - rightNum;
+                        steps.push(`Calculate ${left} ${operator} ${right} = ${result}`);
+                        asReplaced = true;
+                        return result.toString();
+                    });
+                }
+
+                if (asReplaced) {
+                    steps.push(`After addition and subtraction: ${cleanedExpression}`);
+                }
             }
 
-            steps.push(`Final result: ${formattedResult}`);
-            setSteps(steps);
-            setCurrentStepIndex(0);
+            try {
+                const calculatedResult = math.evaluate(processedExpression
+                    .replace(/x/g, '*')
+                    .replace(/÷/g, '/'));
+                const formattedResult = useScientificNotation ?
+                    formatScientific(calculatedResult) : calculatedResult.toString();
 
-            const problem = {
-                originalProblem: expression,
-                solution: formattedResult,
-                explanation: steps.join('\n'),
-                latexExpression: ''
-            };
+                steps.push(`Final result: ${formattedResult}`);
 
-            setCurrentMathProblem(problem);
+                setResult(formattedResult);
+                setSteps(steps);
+                setCurrentStepIndex(0);
 
-            await saveProblem(problem);
-            await handleProblemSolved();
-            await notifySolutionComplete(expression);
-            await schedulePracticeReminder(1);
+                const problem = {
+                    originalProblem: expression,
+                    solution: formattedResult,
+                    explanation: steps.join('\n'),
+                    latexExpression: ''
+                };
+
+                const updatedExercises = [...exercises, problem];
+                setExercises(updatedExercises);
+                setCurrentExerciseIndex(updatedExercises.length - 1);
+                setCurrentMathProblem(problem);
+
+                await saveProblem(problem);
+                await handleProblemSolved();
+                await notifySolutionComplete(expression);
+                await schedulePracticeReminder(1);
+            } catch (error) {
+                setResult(expression);
+                steps.push(`Could not evaluate as mathematical expression. Displaying as text.`);
+                setSteps(steps);
+
+                const problem = {
+                    originalProblem: expression,
+                    solution: expression,
+                    explanation: steps.join('\n'),
+                    latexExpression: ''
+                };
+
+                const updatedExercises = [...exercises, problem];
+                setExercises(updatedExercises);
+                setCurrentExerciseIndex(updatedExercises.length - 1);
+                setCurrentMathProblem(problem);
+
+                await saveProblem(problem);
+            }
         } catch (error) {
-            setResult('Error: Invalid expression');
+            setResult(expression);
             console.error('Calculation error:', error);
         }
     };
@@ -315,8 +582,54 @@ export default function CalculatorScreen() {
         }
     };
 
+    const [angleUnit, setAngleUnit] = useState<'rad' | 'deg'>('rad');
+
+    const handleAdvancedInput = (key: string) => {
+        switch(key) {
+            case 'sin':
+                setExpression(prev => prev + 'sin(');
+                break;
+            case 'cos':
+                setExpression(prev => prev + 'cos(');
+                break;
+            case 'tan':
+                setExpression(prev => prev + 'tan(');
+                break;
+            case 'log':
+                setExpression(prev => prev + 'log10(');
+                break;
+            case 'ln':
+                setExpression(prev => prev + 'log(');
+                break;
+            case '√':
+                setExpression(prev => prev + 'sqrt(');
+                break;
+            case 'π':
+                setExpression(prev => prev + 'pi');
+                break;
+            case 'e':
+                setExpression(prev => prev + 'e');
+                break;
+            case '^':
+                setExpression(prev => prev + '^');
+                break;
+            case '!':
+                setExpression(prev => prev + '!');
+                break;
+            case '%':
+                setExpression(prev => prev + '%');
+                break;
+            case 'Rad/Deg':
+                setAngleUnit(angleUnit === 'rad' ? 'deg' : 'rad');
+                break;
+            default:
+                handleKeypadInput(key);
+                break;
+        }
+    };
+
     const renderKeypad = () => {
-        const keys = [
+        const basicKeys = [
             ['7', '8', '9', '÷'],
             ['4', '5', '6', 'x'],
             ['1', '2', '3', '-'],
@@ -324,35 +637,109 @@ export default function CalculatorScreen() {
             [')', 'C', '⌫', '=']
         ];
 
+        const scientificKeys = [
+            ['sin', 'cos', 'tan', 'π'],
+            ['log', 'ln', 'e', '^'],
+            ['√', '!', '%', '÷'],
+            ['7', '8', '9', 'x'],
+            ['4', '5', '6', '-'],
+            ['1', '2', '3', '+'],
+            ['0', '.', '(', ')'],
+            ['C', '⌫', `${angleUnit.toUpperCase()}`, '=']
+        ];
+
+        const keys = keypadMode === 'basic' ? basicKeys : scientificKeys;
+
         return (
             <View style={styles.keypadContainer}>
+                <View style={styles.keypadModeToggle}>
+                    <TouchableOpacity
+                        style={[
+                            styles.modeToggleButton,
+                            {
+                                backgroundColor: keypadMode === 'basic' ? tintColor : 'rgba(0,0,0,0.1)'
+                            }
+                        ]}
+                        onPress={() => setKeypadMode('basic')}
+                    >
+                        <Text style={{
+                            color: keypadMode === 'basic' ? '#fff' : textColor,
+                            fontWeight: 'bold'
+                        }}>
+                            Basic
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.modeToggleButton,
+                            {
+                                backgroundColor: keypadMode === 'scientific' ? tintColor : 'rgba(0,0,0,0.1)'
+                            }
+                        ]}
+                        onPress={() => setKeypadMode('scientific')}
+                    >
+                        <Text style={{
+                            color: keypadMode === 'scientific' ? '#fff' : textColor,
+                            fontWeight: 'bold'
+                        }}>
+                            Scientific
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
                 {keys.map((row, rowIndex) => (
                     <View key={`row-${rowIndex}`} style={styles.keypadRow}>
-                        {row.map((key) => (
-                            <TouchableOpacity
-                                key={key}
-                                style={[
-                                    styles.keypadButton,
-                                    {
-                                        backgroundColor:
-                                            key === '=' ? tintColor :
-                                                ['C', '⌫', '÷', 'x', '-', '+', '(', ')'].includes(key) ?
-                                                    'rgba(0,0,0,0.1)' : inputBackground
-                                    }
-                                ]}
-                                onPress={() => handleKeypadInput(key)}
-                            >
-                                <Text style={[
-                                    styles.keypadButtonText,
-                                    {
-                                        color: key === '=' ? '#fff' : textColor,
-                                        fontWeight: ['=', 'C', '⌫', '÷', 'x', '-', '+', '(', ')'].includes(key) ? 'bold' : 'normal'
-                                    }
-                                ]}>
-                                    {key}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
+                        {row.map((key) => {
+                            const isSpecialKey = ['C', '⌫', '=', 'RAD', 'DEG'].includes(key);
+                            const isOperator = ['÷', 'x', '-', '+', '^', '!', '%'].includes(key);
+                            const isFunction = ['sin', 'cos', 'tan', 'log', 'ln', '√'].includes(key);
+                            const isConstant = ['π', 'e'].includes(key);
+
+                            let buttonBgColor = isSpecialKey ? tintColor :
+                                isOperator ? 'rgba(0,0,0,0.15)' :
+                                    isFunction ? 'rgba(0,0,0,0.2)' :
+                                        isConstant ? 'rgba(0,0,0,0.25)' :
+                                            inputBackground;
+
+                            let buttonTextColor = isSpecialKey ? '#fff' : textColor;
+                            let fontWeight = isSpecialKey || isOperator || isFunction || isConstant ? 'bold' : 'normal';
+
+                            const fontSize = ['sin', 'cos', 'tan', 'log', 'ln', 'RAD', 'DEG'].includes(key) ? 16 : 22;
+
+                            return (
+                                <TouchableOpacity
+                                    key={key}
+                                    style={[
+                                        styles.keypadButton,
+                                        {
+                                            backgroundColor: buttonBgColor,
+                                            width: keypadMode === 'scientific' ? '24%' : '23%',
+                                            height: keypadMode === 'scientific' ? 50 : 60,
+                                        }
+                                    ]}
+                                    onPress={() => {
+                                        if (key === 'RAD' || key === 'DEG') {
+                                            setAngleUnit(angleUnit === 'rad' ? 'deg' : 'rad');
+                                        } else {
+                                            keypadMode === 'basic' ?
+                                                handleKeypadInput(key) : handleAdvancedInput(key);
+                                        }
+                                    }}
+                                >
+                                    <Text style={[
+                                        styles.keypadButtonText,
+                                        {
+                                            color: buttonTextColor,
+                                            fontWeight: fontWeight as "normal" | "bold" | "100" | "200" | "300" | "400" | "500" | "600" | "700" | "800" | "900" | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | "ultralight" | "thin" | "light" | "medium",
+                                            fontSize: fontSize
+                                        }
+                                    ]}>
+                                        {key}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
                 ))}
             </View>
@@ -404,47 +791,80 @@ export default function CalculatorScreen() {
                 setExpression('Error: ' + result.error);
                 setResult('');
             } else {
+                const isLabeledData = /[A-Za-z]+\s*:/.test(result.originalProblem);
+
                 setExpression(result.originalProblem);
                 setResult(String(result.solution));
-                setCurrentMathProblem(result);
 
-                if (result.explanation) {
-                    const stepsArray = result.explanation
-                        .split('\n')
-                        .filter(step => step.trim().length > 0);
-                    setSteps(stepsArray);
-                    setCurrentStepIndex(0);
+                if (isLabeledData && result.solution === result.originalProblem) {
+                    result.explanation = "This appears to be labeled data (like A: value, B: value). " +
+                        "This format is typically used for reference or to present multiple values. " +
+                        "No calculation was performed as this is not a single mathematical expression.";
+                }
+
+                if (result.exercises && result.exercises.length > 0) {
+                    setExercises(result.exercises);
+                    setCurrentExerciseIndex(0);
+                    setCurrentMathProblem(result.exercises[0]);
+
+                    if (result.exercises[0].explanation) {
+                        const stepsArray = result.exercises[0].explanation
+                            .split('\n')
+                            .filter(step => step.trim().length > 0);
+                        setSteps(stepsArray);
+                        setCurrentStepIndex(0);
+                    }
+
+                    if (result.exercises[0].latexExpression && result.exercises[0].latexExpression.length > 0) {
+                        setLatexExpression(result.exercises[0].latexExpression);
+                        setShowMathView(true);
+                    }
+                } else {
+                    const updatedExercises = [...exercises, result];
+                    setExercises(updatedExercises);
+                    setCurrentExerciseIndex(updatedExercises.length - 1);
+                    setCurrentMathProblem(result);
+
+                    if (result.explanation) {
+                        const stepsArray = result.explanation
+                            .split('\n')
+                            .filter(step => step.trim().length > 0);
+                        setSteps(stepsArray);
+                        setCurrentStepIndex(0);
+                    }
+
+                    if (result.latexExpression && result.latexExpression.length > 0) {
+                        setLatexExpression(result.latexExpression);
+                        setShowMathView(true);
+                    } else {
+                        setLatexExpression('');
+                        setShowMathView(false);
+                    }
                 }
 
                 if (result.originalProblem && result.solution) {
-                    await saveProblem({
+                    const problemToSave = {
                         originalProblem: result.originalProblem,
                         solution: result.solution,
                         explanation: result.explanation || '',
                         latexExpression: result.latexExpression || ''
-                    });
+                    };
 
+                    await saveProblem(problemToSave);
                     await handleProblemSolved();
                     await notifySolutionComplete(result.originalProblem);
                     await schedulePracticeReminder(1);
                 }
 
-                if (result.latexExpression && result.latexExpression.length > 0) {
-                    setLatexExpression(result.latexExpression);
-                    setShowMathView(true);
-                } else {
-                    setLatexExpression('');
-                    setShowMathView(false);
-                }
-
-                if (result.explanation && result.explanation.length > 0) {
-                    console.log('Explanation:', result.explanation);
+                const currentResult = result.exercises ? result.exercises[0] : result;
+                if (currentResult.explanation && currentResult.explanation.length > 0) {
+                    console.log('Explanation:', currentResult.explanation);
                     setTimeout(() => {
                         Alert.alert(
                             'Solution',
-                            result.explanation.length > 200
-                                ? result.explanation.substring(0, 200) + '...'
-                                : result.explanation,
+                            currentResult.explanation.length > 200
+                                ? currentResult.explanation.substring(0, 200) + '...'
+                                : currentResult.explanation,
                             [
                                 {
                                     text: 'See Full Explanation',
@@ -600,68 +1020,155 @@ export default function CalculatorScreen() {
     const renderStepVisualizer = () => {
         if (!steps || steps.length === 0) return null;
 
+        const screenWidth = Dimensions.get('window').width;
+        const cardWidth = screenWidth - 40;
+
         return (
-            <View
-                style={styles.stepVisualizerContainer}
-                {...panResponder.panHandlers}
-            >
-                <Animated.View
-                    style={[
-                        styles.stepCard,
-                        {
-                            transform: [{ translateX: swipeAnim }],
-                            backgroundColor: tintColor
-                        }
-                    ]}
+            <View style={styles.stepVisualizerContainer}>
+                <Text style={[styles.stepCounter, { color: textColor, textAlign: 'center', marginBottom: 10 }]}>
+                    Steps: {currentStepIndex + 1} / {steps.length}
+                </Text>
+
+                <ScrollView
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={(event) => {
+                        const offsetX = event.nativeEvent.contentOffset.x;
+                        const pageIndex = Math.round(offsetX / (cardWidth + 20));
+                        setCurrentStepIndex(pageIndex);
+                    }}
+                    contentContainerStyle={styles.stepsScrollContainer}
+                    snapToInterval={cardWidth + 20}
+                    decelerationRate="fast"
                 >
-                    <Text style={[styles.stepText, { color: '#fff' }]}>
-                        {steps[currentStepIndex]}
-                    </Text>
-
-                    <View style={styles.stepNavigator}>
-                        <TouchableOpacity
+                    {steps.map((step, index) => (
+                        <View
+                            key={`step-${index}`}
                             style={[
-                                styles.stepNavButton,
-                                { opacity: currentStepIndex > 0 ? 1 : 0.5 }
-                            ]}
-                            onPress={() => {
-                                if (currentStepIndex > 0) {
-                                    setCurrentStepIndex(currentStepIndex - 1);
+                                styles.stepCard,
+                                {
+                                    backgroundColor: tintColor,
+                                    width: cardWidth,
+                                    marginRight: index < steps.length - 1 ? 20 : 0
                                 }
-                            }}
-                            disabled={currentStepIndex === 0}
-                        >
-                            <IconSymbol name="chevron.left" size={16} color="#fff" />
-                            <Text style={styles.stepNavText}>Previous</Text>
-                        </TouchableOpacity>
-
-                        <Text style={styles.stepCounter}>
-                            {currentStepIndex + 1} / {steps.length}
-                        </Text>
-
-                        <TouchableOpacity
-                            style={[
-                                styles.stepNavButton,
-                                { opacity: currentStepIndex < steps.length - 1 ? 1 : 0.5 }
                             ]}
-                            onPress={() => {
-                                if (currentStepIndex < steps.length - 1) {
-                                    setCurrentStepIndex(currentStepIndex + 1);
-                                }
-                            }}
-                            disabled={currentStepIndex === steps.length - 1}
                         >
-                            <Text style={styles.stepNavText}>Next</Text>
-                            <IconSymbol name="chevron.right" size={16} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                </Animated.View>
+                            <Text style={[styles.stepText, { color: '#fff' }]}>
+                                {step}
+                            </Text>
+                        </View>
+                    ))}
+                </ScrollView>
 
                 <Text style={[styles.swipeHint, { color: textColor, opacity: 0.7 }]}>
                     Swipe left/right to navigate between steps
                 </Text>
             </View>
         );
+    };
+
+    const renderExerciseNavigator = () => {
+        if (exercises.length <= 1) return null;
+
+        return (
+            <View style={styles.exerciseNavigatorContainer}>
+                <Text style={[styles.exerciseCounter, { color: textColor, textAlign: 'center', marginBottom: 10 }]}>
+                    Exercise: {currentExerciseIndex + 1} / {exercises.length}
+                </Text>
+
+                <View style={styles.exerciseNavButtons}>
+                    <TouchableOpacity
+                        style={[
+                            styles.exerciseNavButton,
+                            { backgroundColor: tintColor, opacity: currentExerciseIndex > 0 ? 1 : 0.5 }
+                        ]}
+                        onPress={() => {
+                            if (currentExerciseIndex > 0) {
+                                const newIndex = currentExerciseIndex - 1;
+                                setCurrentExerciseIndex(newIndex);
+                                const exercise = exercises[newIndex];
+                                setCurrentMathProblem(exercise);
+                                setExpression(exercise.originalProblem);
+                                setResult(exercise.solution);
+
+                                if (exercise.explanation) {
+                                    const stepsArray = exercise.explanation
+                                        .split('\n')
+                                        .filter((step: string) => step.trim().length > 0);
+                                    setSteps(stepsArray);
+                                    setCurrentStepIndex(0);
+                                }
+
+                                if (exercise.latexExpression && exercise.latexExpression.length > 0) {
+                                    setLatexExpression(exercise.latexExpression);
+                                    setShowMathView(true);
+                                } else {
+                                    setLatexExpression('');
+                                    setShowMathView(false);
+                                }
+                            }
+                        }}
+                        disabled={currentExerciseIndex === 0}
+                    >
+                        <IconSymbol name="chevron.left" size={20} color="#fff" />
+                        <Text style={styles.exerciseNavButtonText}>Previous</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.exerciseNavButton,
+                            { backgroundColor: tintColor, opacity: currentExerciseIndex < exercises.length - 1 ? 1 : 0.5 }
+                        ]}
+                        onPress={() => {
+                            if (currentExerciseIndex < exercises.length - 1) {
+                                const newIndex = currentExerciseIndex + 1;
+                                setCurrentExerciseIndex(newIndex);
+                                const exercise = exercises[newIndex];
+                                setCurrentMathProblem(exercise);
+                                setExpression(exercise.originalProblem);
+                                setResult(exercise.solution);
+
+                                if (exercise.explanation) {
+                                    const stepsArray = exercise.explanation
+                                        .split('\n')
+                                        .filter((step: string) => step.trim().length > 0);
+                                    setSteps(stepsArray);
+                                    setCurrentStepIndex(0);
+                                }
+
+                                if (exercise.latexExpression && exercise.latexExpression.length > 0) {
+                                    setLatexExpression(exercise.latexExpression);
+                                    setShowMathView(true);
+                                } else {
+                                    setLatexExpression('');
+                                    setShowMathView(false);
+                                }
+                            }
+                        }}
+                        disabled={currentExerciseIndex === exercises.length - 1}
+                    >
+                        <Text style={styles.exerciseNavButtonText}>Next</Text>
+                        <IconSymbol name="chevron.right" size={20} color="#fff" />
+                    </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.swipeHint, { color: textColor, opacity: 0.7 }]}>
+                    Navigate between different exercises
+                </Text>
+            </View>
+        );
+    };
+
+    const clearCalculator = () => {
+        setExpression('');
+        setResult('');
+        setSteps([]);
+        setCurrentStepIndex(0);
+        setCurrentMathProblem(null);
+        setShowMathView(false);
+        setLatexExpression('');
+        setExercises([]);
     };
 
     if (hasPermission === null) {
@@ -714,7 +1221,16 @@ export default function CalculatorScreen() {
                                     borderColor: inputBorder
                                 }
                             ]}>
-                                <ThemedText style={styles.expressionText}>{expression}</ThemedText>
+                                <ScrollView style={{maxHeight: 200}}>
+                                    <ThemedText style={styles.expressionText}>
+                                        {expression.split('\n').map((line, i) => (
+                                            <React.Fragment key={i}>
+                                                {i > 0 && '\n'}
+                                                {line}
+                                            </React.Fragment>
+                                        ))}
+                                    </ThemedText>
+                                </ScrollView>
                                 <TouchableOpacity
                                     style={styles.keypadToggle}
                                     onPress={() => setShowKeypad(!showKeypad)}
@@ -727,7 +1243,22 @@ export default function CalculatorScreen() {
                                 </TouchableOpacity>
                             </View>
 
-                            <View style={[styles.resultContainer, { backgroundColor: tintColor }]}>
+                            <Animated.View
+                                {...(exercises.length > 1 ? exercisePanResponder.panHandlers : {})}
+                                style={[
+                                    styles.resultContainer,
+                                    {
+                                        backgroundColor: tintColor,
+                                        transform: [{ translateX: exerciseSwipeAnim }]
+                                    }
+                                ]}
+                            >
+                                {exercises.length > 1 && (
+                                    <View style={styles.swipeIndicatorContainer}>
+                                        <View style={styles.swipeIndicator} />
+                                    </View>
+                                )}
+
                                 <Text style={[styles.resultText, { color: '#fff' }]}>{result}</Text>
 
                                 <View style={styles.resultActionContainer}>
@@ -749,7 +1280,15 @@ export default function CalculatorScreen() {
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
-                            </View>
+
+                                {exercises.length > 1 && (
+                                    <Text style={[styles.exerciseIndicator, { color: '#fff', opacity: 0.7 }]}>
+                                        Exercise {currentExerciseIndex + 1} of {exercises.length}
+                                    </Text>
+                                )}
+                            </Animated.View>
+
+                            {exercises.length > 1 && renderExerciseNavigator()}
 
                             {steps.length > 0 && renderStepVisualizer()}
 
@@ -771,7 +1310,7 @@ export default function CalculatorScreen() {
 
                                         <TouchableOpacity
                                             style={[sharedStyles.actionButton, { backgroundColor: tintColor }]}
-                                            onPress={() => setExpression('')}
+                                            onPress={clearCalculator}
                                         >
                                             <Text style={sharedStyles.actionButtonText}>Clear</Text>
                                         </TouchableOpacity>
@@ -864,17 +1403,51 @@ export default function CalculatorScreen() {
                         <Text style={sharedStyles.loadingText}>Processing image...</Text>
                     </View>
                 )}
-                <ThemedView style={styles.footer}>
-                    <ThemedText style={[styles.versionText, { color: textColor, opacity: 0.5 }]}>
-                        MathCalc v0.0.7
-                    </ThemedText>
-                </ThemedView>
+                <AppFooter/>
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
+    exerciseNavigatorContainer: {
+        marginBottom: 20,
+    },
+    exerciseCounter: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    exerciseNavButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginVertical: 10,
+    },
+    exerciseNavButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+    },
+    exerciseNavButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        marginHorizontal: 5,
+    },
+    stepsScrollContainer: {
+        alignItems: 'center',
+    },
+    keypadModeToggle: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginBottom: 15,
+    },
+    modeToggleButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        marginHorizontal: 5,
+    },
     cameraContainer: {
         flex: 1,
     },
@@ -929,6 +1502,7 @@ const styles = StyleSheet.create({
     },
     expressionText: {
         fontSize: 24,
+        lineHeight: 32,
     },
     keypadToggle: {
         position: 'absolute',
@@ -950,6 +1524,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginTop: 10,
+    },
+    swipeIndicatorContainer: {
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    swipeIndicator: {
+        width: 40,
+        height: 5,
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        borderRadius: 2.5,
+    },
+    exerciseIndicator: {
+        textAlign: 'center',
+        fontSize: 12,
         marginTop: 10,
     },
     explainButton: {
@@ -1041,9 +1630,9 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     closeButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1147,6 +1736,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     versionText: {
-        fontSize: 12,
+        fontSize: 14,
     }
 });

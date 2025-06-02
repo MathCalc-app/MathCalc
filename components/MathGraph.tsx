@@ -1,7 +1,7 @@
-﻿
+
 import React from 'react';
 import {WebView} from 'react-native-webview';
-import {StyleSheet, View} from 'react-native';
+import {Dimensions, StyleSheet, View} from 'react-native';
 import {useThemeColor} from '@/hooks/useThemeColor';
 import {useTheme} from '@/contexts/ThemeContext';
 
@@ -161,7 +161,7 @@ const MathGraph = ({
           
           const graphOptions = {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             scales: {
               x: {
                 min: ${minX},
@@ -212,7 +212,7 @@ const MathGraph = ({
 
 const styles = StyleSheet.create({
     container: {
-        height: 300,
+        height: Math.max(300, Dimensions.get('window').height * 0.4),
         width: '100%',
         marginVertical: 10,
     },

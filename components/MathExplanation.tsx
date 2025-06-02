@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, TextInput, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Switch } from 'react-native';
 import { solveMathProblem } from '@/utils/mathProcessor';
 import MathWebView from '@/components/ui/MathWebView';
@@ -183,10 +183,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     closeButton: {
+        width: 44,
+        height: 44,
         position: 'absolute',
         right: 0,
         padding: 8,
-        borderRadius: 20,
+        borderRadius: 22,
     },
     scrollView: {
         flex: 1,
