@@ -1,11 +1,8 @@
 import 'react-native-reanimated';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
-import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import Colors from '@/constants/Colors';
+import CustomTabBar from '@/components/CustomTabBar';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function TabLayout() {
@@ -13,20 +10,9 @@ export default function TabLayout() {
 
     return (
         <Tabs
+            tabBar={props => <CustomTabBar {...props} />}
             screenOptions={{
-                tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
                 headerShown: false,
-                tabBarButton: HapticTab,
-                tabBarBackground: TabBarBackground,
-                tabBarStyle: {
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    elevation: 0,
-                    height: Platform.OS === 'ios' ? 80 : 60,
-                    zIndex: 8,
-                },
             }}>
             <Tabs.Screen
                 name="index"

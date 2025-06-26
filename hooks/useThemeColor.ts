@@ -1,9 +1,16 @@
 import Colors from '@/constants/Colors';
 import { useTheme } from '@/contexts/ThemeContext';
 
+
+type ColorNameType = 'text' | 'background' | 'tint' | 'accent' | 'tertiary' |
+                    'tabIconDefault' | 'tabIconSelected' | 'card' | 'border' |
+                    'notification' | 'error' | 'success' | 'warning' | 'info' |
+                    'surface' | 'surfaceVariant' | 'buttonGradientStart' |
+                    'buttonGradientEnd' | 'icon' | 'cardBackground';
+
 export function useThemeColor(
     props: { light?: string; dark?: string },
-    colorName: keyof typeof Colors.light & keyof typeof Colors.dark
+    colorName: ColorNameType
 ) {
   const { effectiveTheme } = useTheme();
 
@@ -14,8 +21,8 @@ export function useThemeColor(
   if (colorFromProps) {
     return colorFromProps;
   } else {
-    if (Colors && Colors[effectiveTheme] && Colors[effectiveTheme][colorName]) {
-      return Colors[effectiveTheme][colorName];
+    if (Colors && Colors[effectiveTheme] && Colors[effectiveTheme][colorName as keyof typeof Colors.light]) {
+      return Colors[effectiveTheme][colorName as keyof typeof Colors.light];
     }
 
     return effectiveTheme === 'dark' ? '#FFFFFF' : '#000000';

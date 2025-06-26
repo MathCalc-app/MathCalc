@@ -27,11 +27,11 @@ export default function RootLayout() {
     return (
         <SafeAreaProvider>
             <ThemeProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(tabs)" />
+                <Stack screenOptions={{headerShown: false}}>
+                    <Stack.Screen name="(tabs)"/>
                 </Stack>
-                <StatusBar style="auto" />
+                <StatusBar style="auto"/>
             </ThemeProvider>
         </SafeAreaProvider>
-    );
-}
+    )
+};

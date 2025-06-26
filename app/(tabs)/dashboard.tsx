@@ -188,7 +188,6 @@ export default function DashboardScreen() {
                     />
                 }
             />
-            <AppFooter/>
         </ThemedView>
     );
 }

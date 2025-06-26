@@ -90,9 +90,6 @@ interface MathProblemResult {
     exercises?: MathProblemResult[];
 }
 
-/**
- * Gets the appropriate system prompt based on user preferences
- */
 const getSystemPrompt = async (isForImage: boolean = false): Promise<string> => {
     try {
         const settings = await getSettings();
@@ -119,9 +116,6 @@ const getSystemPrompt = async (isForImage: boolean = false): Promise<string> => 
     }
 };
 
-/**
- * Attempt to solve a math problem locally using mathjs
- */
 const solveWithMathJs = (expression: string): MathProblemResult | null => {
     try {
         console.log('Attempting to solve with mathjs:', expression);
@@ -155,16 +149,10 @@ const solveWithMathJs = (expression: string): MathProblemResult | null => {
     }
 };
 
-/**
- * Generate basic explanation for simple math operations
- */
 const generateBasicExplanation = (expression: string, result: string): string => {
     return `To solve ${expression}, I evaluated the expression directly using the order of operations (PEMDAS).\n\nThe result is ${result}.`;
 };
 
-/**
- * Get cached math operation result if available
- */
 const getCachedOperation = async (input: string): Promise<MathProblemResult | null> => {
     try {
         const cacheString = await AsyncStorage.getItem(OFFLINE_CACHE_KEY);
@@ -185,9 +173,6 @@ const getCachedOperation = async (input: string): Promise<MathProblemResult | nu
     }
 };
 
-/**
- * Save operation to cache for offline use
- */
 const cacheOperation = async (input: string, result: MathProblemResult): Promise<void> => {
     try {
         const cacheString = await AsyncStorage.getItem(OFFLINE_CACHE_KEY);
@@ -209,9 +194,6 @@ const cacheOperation = async (input: string, result: MathProblemResult): Promise
     }
 };
 
-/**
- * Generate a simple hash for an image to use for caching
- */
 const generateImageHash = async (imageUri: string): Promise<string> => {
     try {
         const fileInfo = await FileSystem.getInfoAsync(imageUri);
@@ -226,9 +208,6 @@ const generateImageHash = async (imageUri: string): Promise<string> => {
     }
 };
 
-/**
- * Get cached image processing result if available
- */
 const getCachedImageProcess = async (imageHash: string): Promise<string | null> => {
     try {
         const cacheString = await AsyncStorage.getItem(IMAGE_PROCESS_CACHE_KEY);
@@ -249,10 +228,7 @@ const getCachedImageProcess = async (imageHash: string): Promise<string | null> 
     }
 };
 
-/**
- * Save image processing result to cache
- */
-const cacheImageProcess = async (imageHash: string, extractedExpression: string): Promise<void> => {
+export const cacheImageProcess = async (imageHash: string, extractedExpression: string): Promise<void> => {
     try {
         const cacheString = await AsyncStorage.getItem(IMAGE_PROCESS_CACHE_KEY);
         const cache: CachedImageProcess[] = cacheString ? JSON.parse(cacheString) : [];
@@ -273,9 +249,6 @@ const cacheImageProcess = async (imageHash: string, extractedExpression: string)
     }
 };
 
-/**
- * Solves a mathematical problem using OpenAI
- */
 export const solveMathProblem = async (
     mathText: string,
     onProgress?: (partialResponse: string) => void
@@ -376,9 +349,6 @@ export const solveMathProblem = async (
     }
 };
 
-/**
- * Check if device is connected to the internet
- */
 const isConnected = async (): Promise<boolean> => {
     try {
         const response = await fetch('https://ocr.iakzs.lol', { method: 'HEAD' });
@@ -389,9 +359,6 @@ const isConnected = async (): Promise<boolean> => {
     }
 };
 
-/**
- * Call the Hack Club AI API as a fallback for solving math problems
- */
 const callHackClubAI = async (mathExpression: string): Promise<MathProblemResult> => {
     console.log('Calling Hack Club AI for:', mathExpression);
 
@@ -460,9 +427,6 @@ const callHackClubAI = async (mathExpression: string): Promise<MathProblemResult
     }
 };
 
-/**
- * Helper function to extract a likely numerical solution from text
- */
 const extractNumberFromText = (text: string): string | null => {
     const answerMatch = text.match(/(?:answer|result|solution)(?:\s+is|\s*[:=])\s*([+-]?\d+(?:[.,]\d+)?)/i);
     if (answerMatch && answerMatch[1]) {
@@ -477,9 +441,6 @@ const extractNumberFromText = (text: string): string | null => {
     return null;
 };
 
-/**
- * Format expression for Wolfram Alpha API
- */
 const formatForWolframAlpha = (expression: string): string => {
     return expression
         .replace(/×/g, '*')
@@ -491,9 +452,6 @@ const formatForWolframAlpha = (expression: string): string => {
         .replace(/−/g, '-');
 };
 
-/**
- * Call MathCalc's custom OCR API to extract text from an image
- */
 const callCustomOcrApi = async (imageUri: string): Promise<string> => {
     try {
         console.log('Calling MathCalc custom OCR API for image:', imageUri);
@@ -506,13 +464,9 @@ const callCustomOcrApi = async (imageUri: string): Promise<string> => {
 
         let ocrApiUrl = '';
         try {
-            ocrApiUrl = await AsyncStorage.getItem('ocr_api_url') || 'https://ocr.iakzs.lol/ocr';
+            ocrApiUrl = await AsyncStorage.getItem('ocr_api_url') || 'https://ocr.mathcalc.app/ocr';
             if (!ocrApiUrl) {
                 throw new Error('OCR API URL is not configured...');
-            }
-
-            if (!ocrApiUrl.endsWith('/ocr')) {
-                ocrApiUrl = ocrApiUrl.endsWith('/') ? `${ocrApiUrl}ocr` : `${ocrApiUrl}/ocr`;
             }
 
             console.log('Using OCR API URL:', ocrApiUrl);
@@ -558,24 +512,40 @@ const callCustomOcrApi = async (imageUri: string): Promise<string> => {
 
             const data = await response.json();
 
-            if (!data.text) {
-                console.error('OCR API returned no text:', JSON.stringify(data));
-                throw new Error('No text extracted from OCR API');
+            if (data.status && data.latex) {
+                console.log('OCR API returned formatted response:', JSON.stringify(data));
+
+                if (data.status === "accepted") {
+                    console.log('OCR result accepted automatically with confidence:', data.confidence);
+                    return data.latex;
+                }
+
+                if (data.status === "review") {
+                    console.log('OCR result requires human review with confidence:', data.confidence);
+
+                    await AsyncStorage.setItem('ocr_review_data', JSON.stringify(data));
+                    throw new Error('OCR_REVIEW_REQUIRED');
+                }
             }
 
-            console.log('OCR API extracted text:', data.text);
-            const extractedText = data.text.trim();
-            const labeledExpressionRegex = /([A-Za-z]+\s*:)/g;
+            if (data.text) {
+                console.log('OCR API extracted text (legacy format):', data.text);
+                const extractedText = data.text.trim();
+                const labeledExpressionRegex = /([A-Za-z]+\s*:)/g;
 
-            if (labeledExpressionRegex.test(extractedText) && !extractedText.includes('\n')) {
-                const formattedText = extractedText.replace(labeledExpressionRegex, (match: string, label: string, offset: number) => {
-                    return offset === 0 ? label : '\n' + label;
-                });
-                console.log('Formatted labeled expressions with line breaks:', formattedText);
-                return formattedText;
+                if (labeledExpressionRegex.test(extractedText) && !extractedText.includes('\n')) {
+                    const formattedText = extractedText.replace(labeledExpressionRegex, (match: string, label: string, offset: number) => {
+                        return offset === 0 ? label : '\n' + label;
+                    });
+                    console.log('Formatted labeled expressions with line breaks:', formattedText);
+                    return formattedText;
+                }
+
+                return extractedText;
             }
 
-            return extractedText;
+            console.error('OCR API returned no recognizable data:', JSON.stringify(data));
+            throw new Error('No text extracted from OCR API');
 
         } catch (fetchError: unknown) {
             clearTimeout(timeoutId);
@@ -593,9 +563,6 @@ const callCustomOcrApi = async (imageUri: string): Promise<string> => {
     }
 };
 
-/**
- * Process image to extract a math problem, then solve it using various APIs
- */
 export const solveMathProblemFromImage = async (
     imageUri: string
 ): Promise<MathProblemResult> => {
@@ -627,6 +594,18 @@ export const solveMathProblemFromImage = async (
                 try {
                     extractedExpression = await callCustomOcrApi(optimizedUri);
                 } catch (ocrError) {
+                    if (ocrError instanceof Error && ocrError.message === 'OCR_REVIEW_REQUIRED') {
+                        await AsyncStorage.setItem('ocr_pending_image_hash', imageHash);
+
+                        return {
+                            originalProblem: "Problem from image",
+                            solution: '',
+                            explanation: '',
+                            latexExpression: '',
+                            error: 'OCR_REVIEW_REQUIRED'
+                        };
+                    }
+
                     console.error('Error extracting text with MathCalc custom OCR API:', ocrError);
 
                     const settings = await getSettings();
@@ -753,9 +732,6 @@ export const solveMathProblemFromImage = async (
     }
 };
 
-/**
- * Optimize image before processing to reduce size and improve extraction quality
- */
 const optimizeImage = async (imageUri: string): Promise<string> => {
     try {
         const fileInfo = await FileSystem.getInfoAsync(imageUri);
@@ -777,9 +753,6 @@ const optimizeImage = async (imageUri: string): Promise<string> => {
     }
 };
 
-/**
- * Call the Wolfram Alpha API to solve a mathematical problem
- */
 const callWolframAlphaAPI = async (mathExpression: string): Promise<any> => {
     console.log('Calling Wolfram Alpha API for:', mathExpression);
 
@@ -843,9 +816,6 @@ const callWolframAlphaAPI = async (mathExpression: string): Promise<any> => {
     }
 };
 
-/**
- * Extract solution from Wolfram Alpha API response
- */
 const extractWolframSolution = (wolframData: any): MathProblemResult => {
     try {
         const inputPod = wolframData.queryresult.pods.find((pod: any) => pod.id === 'Input');
@@ -877,9 +847,6 @@ const extractWolframSolution = (wolframData: any): MathProblemResult => {
     }
 };
 
-/**
- * Generate a clear explanation for common math operations
- */
 const generateExplanation = (problem: string, result: string): string => {
     const cleaned = problem.replace(/\s/g, '');
 
@@ -973,9 +940,6 @@ const generateExplanation = (problem: string, result: string): string => {
     return `To calculate ${problem}, we follow the order of operations (PEMDAS - Parentheses, Exponents, Multiplication/Division, Addition/Subtraction).\n\nThe result is ${result}.`;
 };
 
-/**
- * Cleans the input math text by replacing common errors
- */
 const cleanMathText = (text: string) => {
     return text
         .replace(/[oO]/g, '0')
@@ -984,10 +948,6 @@ const cleanMathText = (text: string) => {
         .replace(/\s+/g, '');
 }
 
-/**
- * Export a simple function to evaluate an expression offline using mathjs
- * This can be used in places where we want to do quick calculations without API calls
- */
 export const evaluateExpression = (expression: string): string => {
     try {
         const cleanedExpression = expression
@@ -1003,9 +963,6 @@ export const evaluateExpression = (expression: string): string => {
     }
 };
 
-/**
- * Clears the operation cache
- */
 export const clearMathCache = async (): Promise<void> => {
     try {
         await AsyncStorage.removeItem(OFFLINE_CACHE_KEY);
@@ -1017,9 +974,6 @@ export const clearMathCache = async (): Promise<void> => {
     }
 };
 
-/**
- * Returns statistics about the cached operations
- */
 export const getMathCacheStats = async (): Promise<{
     operationCount: number,
     imageProcessCount: number,

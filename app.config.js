@@ -2,7 +2,7 @@ export default {
     expo: {
         name: "MathCalc",
         slug: "mathcalc",
-        version: "0.0.10",
+        version: "0.0.12",
         orientation: "portrait",
         icon: "./assets/images/icon.png",
         scheme: "myapp",
@@ -25,7 +25,7 @@ export default {
                 "android.permission.CAMERA",
                 "android.permission.RECORD_AUDIO"
             ],
-            package: "com.hackclub.mathcalc"
+            package: "app.mathcalc.mathcalc"
         },
         web: {
             bundler: "metro",
@@ -62,6 +62,7 @@ export default {
         },
         extra: {
             openaiApiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY,
+            wolframApiKey: process.env.EXPO_PUBLIC_WOLFRAM_API_KEY,
             router: {
                 origin: false
             },

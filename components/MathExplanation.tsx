@@ -63,15 +63,17 @@ Explanation: ${mathProblem.explanation}
     };
 
     return (
-        <View style={[styles.container, { backgroundColor }]}>
+        <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={[styles.headerText, { color: textColor }]}>Math Explanation</Text>
                 <TouchableOpacity
-                    style={[styles.closeButton, { backgroundColor: tintColor }]}
+                    style={styles.backButton}
                     onPress={onClose}
                 >
-                    <IconSymbol name="xmark" size={20} color="#fff" />
+                    <IconSymbol name="chevron.left" size={24} color={textColor} />
+                    <Text style={{ color: textColor, marginLeft: 4, fontSize: 16 }}>Back</Text>
                 </TouchableOpacity>
+                <Text style={[styles.headerText, { color: textColor }]}>Math Explanation</Text>
+                <View style={{ width: 80 }} />
             </View>
 
             <ScrollView
@@ -169,26 +171,27 @@ Explanation: ${mathProblem.explanation}
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 16,
+        padding: 10,
+        borderRadius: 8,
+        marginTop: 15,
     },
     header: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 15,
-        position: 'relative',
+        marginBottom: 15,
+        paddingVertical: 10,
+    },
+    backButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 4,
     },
     headerText: {
         fontSize: 20,
         fontWeight: 'bold',
-    },
-    closeButton: {
-        width: 44,
-        height: 44,
-        position: 'absolute',
-        right: 0,
-        padding: 8,
-        borderRadius: 22,
+        textAlign: 'center',
     },
     scrollView: {
         flex: 1,

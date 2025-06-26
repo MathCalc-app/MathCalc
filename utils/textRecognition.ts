@@ -1,5 +1,5 @@
 /*
- This TypeScript file is not being used, as we've moved to AI
+ This TypeScript file is not being used, as MathCalc moved to OCR
  */
 import TextRecognition from 'react-native-text-recognition';
 

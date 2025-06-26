@@ -515,7 +515,6 @@ export default function VisualizationScreen() {
                     </ThemedView>
                 )}
             </ScrollView>
-            <AppFooter/>
         </SafeAreaView>
     );
 }

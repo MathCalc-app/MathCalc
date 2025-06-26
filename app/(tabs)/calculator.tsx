@@ -11,7 +11,9 @@ import {
     PanResponder,
     GestureResponderEvent,
     Animated,
-    Keyboard, ScrollView
+    Keyboard, 
+    ScrollView,
+    Dimensions
 } from 'react-native';
 import type {CameraView as CameraViewType} from 'expo-camera';
 import {Camera, CameraType, CameraView} from 'expo-camera';
@@ -32,8 +34,6 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {scheduleNotification, notifySolutionComplete, schedulePracticeReminder} from '@/utils/notificationUtil';
 import {sharedStyles} from '@/assets/styles/sharedStyles';
 import AdvancedCalculator from '@/components/AdvancedCalculator';
-import { Dimensions } from 'react-native';
-import { AppFooter } from "@/components/AppFooter";
 
 const unitConversions = {
     length: {
@@ -1357,43 +1357,72 @@ export default function CalculatorScreen() {
                 </ThemedView>
 
                 <Modal
-                    visible={showExplanation}
-                    animationType="slide"
-                    onRequestClose={() => setShowExplanation(false)}
-                >
-                    {currentMathProblem && (
-                        <MathExplanation
-                            mathProblem={currentMathProblem}
-                            onClose={() => setShowExplanation(false)}
-                        />
-                    )}
-                </Modal>
-
-                <Modal
                     visible={showAdvancedOptions}
                     animationType="slide"
                     transparent={false}
                     onRequestClose={() => setShowAdvancedOptions(false)}
+                    statusBarTranslucent={true}
                 >
-                    <SafeAreaView style={{ flex: 1, backgroundColor }}>
-                        <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
-                                <ThemedText type="subtitle">Advanced Calculator</ThemedText>
+                    <SafeAreaView style={{flex: 1, backgroundColor: backgroundColor}}>
+                        <View style={{flex: 1, padding: 10}}>
+                            <View style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: 15,
+                                paddingVertical: 10,
+                            }}>
                                 <TouchableOpacity
-                                    style={[styles.closeButton, { backgroundColor: tintColor }]}
+                                    style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        paddingVertical: 8,
+                                        paddingHorizontal: 4,
+                                    }}
                                     onPress={() => setShowAdvancedOptions(false)}
                                 >
-                                    <IconSymbol name="xmark" size={18} color="#fff" />
+                                    <IconSymbol name="chevron.left" size={24} color={textColor} />
+                                    <Text style={{ color: textColor, marginLeft: 4, fontSize: 16 }}>Back</Text>
                                 </TouchableOpacity>
+                                <Text style={{
+                                    fontSize: 20,
+                                    fontWeight: 'bold',
+                                    color: textColor,
+                                    textAlign: 'center',
+                                }}>Advanced Calculator</Text>
+                                <View style={{ width: 80 }} />
                             </View>
-                            <AdvancedCalculator
-                                onCalculationComplete={(originalProblem, solution, explanation) => {
-                                    handleAdvancedCalculation(originalProblem, solution, explanation);
-                                    setShowAdvancedOptions(false);
-                                }}
-                            />
+                            
+                            <ScrollView 
+                                style={{flex: 1}} 
+                                contentContainerStyle={{paddingBottom: 20}}
+                            >
+                                <AdvancedCalculator
+                                    onCalculationComplete={(originalProblem, solution, explanation) => {
+                                        handleAdvancedCalculation(originalProblem, solution, explanation);
+                                        setShowAdvancedOptions(false);
+                                    }}
+                                />
+                            </ScrollView>
                         </View>
                     </SafeAreaView>
+                </Modal>
+
+                <Modal
+                    visible={showExplanation}
+                    animationType="slide"
+                    transparent={false}
+                    onRequestClose={() => setShowExplanation(false)}
+                    statusBarTranslucent={true}
+                >
+                    {currentMathProblem && (
+                        <SafeAreaView style={{flex: 1, backgroundColor: backgroundColor}}>
+                            <MathExplanation
+                                mathProblem={currentMathProblem}
+                                onClose={() => setShowExplanation(false)}
+                            />
+                        </SafeAreaView>
+                    )}
                 </Modal>
 
                 {renderUnitConverter()}
@@ -1403,7 +1432,6 @@ export default function CalculatorScreen() {
                         <Text style={sharedStyles.loadingText}>Processing image...</Text>
                     </View>
                 )}
-                <AppFooter/>
             </ScrollView>
         </SafeAreaView>
     );

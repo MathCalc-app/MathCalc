@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, ScrollView, View, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/ThemedText';
@@ -12,7 +12,8 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { incrementStat } from '@/utils/storageUtil';
 import MixedLatexText from "@/components/ui/MixedLatexText";
-import {AppFooter} from "@/components/AppFooter";
+import { AppFooter } from "@/components/AppFooter";
+import OCRPreviewModal from '@/components/OCRPreviewModal';
 
 const topics = [
     { id: '1', name: 'Algebra', subtopics: ['Equations', 'Inequalities', 'Polynomials'] },
@@ -37,10 +38,44 @@ export default function PracticeScreen() {
     const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
     const [quizScore, setQuizScore] = useState({ correct: 0, total: 0 });
 
+    const [showOCRPreviewModal, setShowOCRPreviewModal] = useState(false);
+    const [pendingImageHash, setPendingImageHash] = useState<string | undefined>(undefined);
+
     const { effectiveTheme } = useTheme();
     const backgroundColor = useThemeColor({}, 'background');
     const textColor = useThemeColor({}, 'text');
     const tintColor = useThemeColor({}, 'tint');
+
+    useEffect(() => {
+        const checkForPendingReviews = async () => {
+            try {
+                const data = await AsyncStorage.getItem('ocr_review_data');
+                if (data) {
+                    const hash = await AsyncStorage.getItem('ocr_pending_image_hash');
+                    setPendingImageHash(hash || undefined);
+                    setShowOCRPreviewModal(true);
+                }
+            } catch (error) {
+                console.error('Error checking for pending OCR reviews:', error);
+            }
+        };
+        checkForPendingReviews();
+    }, []);
+
+    const handleAcceptOCR = (latex: string) => {
+        console.log('OCR result accepted:', latex);
+        setShowOCRPreviewModal(false);
+
+        AsyncStorage.removeItem('ocr_review_data');
+        AsyncStorage.removeItem('ocr_pending_image_hash');
+    };
+
+    const handleCancelOCR = () => {
+        console.log('OCR result rejected');
+        setShowOCRPreviewModal(false);
+        AsyncStorage.removeItem('ocr_review_data');
+        AsyncStorage.removeItem('ocr_pending_image_hash');
+    };
 
     const cardBackground = effectiveTheme === 'light'
         ? '#f5f5f5'
@@ -265,6 +300,13 @@ export default function PracticeScreen() {
                     </ThemedText>
                 </ThemedView>
 
+                <OCRPreviewModal
+                    visible={showOCRPreviewModal}
+                    onAccept={handleAcceptOCR}
+                    onCancel={handleCancelOCR}
+                    imageHash={pendingImageHash}
+                />
+
                 {renderModeToggle()}
 
                 {!selectedTopic ? (
@@ -411,7 +453,6 @@ export default function PracticeScreen() {
                     </>
                 )}
             </ScrollView>
-            <AppFooter/>
         </SafeAreaView>
     );
 }
